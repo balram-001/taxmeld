@@ -20,7 +20,7 @@ const AVAILABLE_SERVICES = [
   { id: 'Accounting & Audit', label: 'Accounting & Audit', hint: 'Trial balance, ledgers, stock sheet' }
 ];
 
-function Dashboard() {
+function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: boolean; onDemoLimit?: () => void }) {
   const { showToast } = useToast();
   const caName = (() => {
     try {
@@ -73,6 +73,15 @@ function Dashboard() {
   const [savingClient, setSavingClient] = useState(false);
 
   const fetchClients = async () => {
+    if (isDemo) {
+      try {
+        const savedDemoClient = JSON.parse(localStorage.getItem('taxmeld_demo_client') || 'null');
+        setClients(savedDemoClient ? [savedDemoClient] : []);
+      } catch {
+        setClients([]);
+      }
+      return;
+    }
     try {
       const res = await API.get('/clients');
       setClients(res.data || []);
@@ -95,7 +104,7 @@ function Dashboard() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isDemo]);
 
   const toggleService = (serviceId: string) => {
     setFormData((prev) => {
@@ -125,6 +134,32 @@ function Dashboard() {
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (savingClient) return;
+
+    if (isDemo) {
+      if (clients.length >= 1) {
+        setIsModalOpen(false);
+        onDemoLimit?.();
+        return;
+      }
+      const demoClient = {
+        _id: `demo-${Date.now()}`,
+        name: formData.name.trim(),
+        panNumber: formData.panNumber.trim().toUpperCase(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        whatsappNumber: formData.phone.trim(),
+        serviceType: formData.services.join(', '),
+        customRequirements: customReqs,
+        trackingToken: `demo-${Date.now()}`,
+      };
+      localStorage.setItem('taxmeld_demo_client', JSON.stringify(demoClient));
+      setClients([demoClient]);
+      setIsModalOpen(false);
+      setFormData({ name: '', panNumber: '', email: '', phone: '', services: [] });
+      setCustomReqs([]);
+      showToast('Your free demo client has been created.', 'success');
+      return;
+    }
 
     setSavingClient(true);
     try {
@@ -162,6 +197,10 @@ function Dashboard() {
   };
 
   const openWorkflowModal = async (client: any) => {
+    if (isDemo) {
+      onDemoLimit?.();
+      return;
+    }
     setActiveClient(client);
     setLoadingTasks(true);
     setIsReplacingAck(false);
@@ -177,6 +216,10 @@ function Dashboard() {
   };
 
   const openDrawerPreview = async (client: any) => {
+    if (isDemo) {
+      onDemoLimit?.();
+      return;
+    }
     setDrawerClient(client);
     setLoadingDrawer(true);
     try {
@@ -321,7 +364,13 @@ function Dashboard() {
           <p className="text-slate-500 text-xs sm:text-sm">Manage multi-service clients, custom requirements & final deliveries</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            if (isDemo && clients.length >= 1) {
+              onDemoLimit?.();
+              return;
+            }
+            setIsModalOpen(true);
+          }}
           className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
         >
           <Plus size={18} /> Add New Client
@@ -1466,6 +1515,34 @@ function LandingPage() {
 
 type DemoClient = { name: string; panNumber: string; service: string; createdAt: string };
 
+function DemoEmail({ onStart }: { onStart: () => void }) {
+  const [email, setEmail] = useState('');
+  const navigate = useNavigate();
+
+  const startDemo = (event: React.FormEvent) => {
+    event.preventDefault();
+    localStorage.setItem('taxmeld_demo_email', email.trim().toLowerCase());
+    localStorage.removeItem('taxmeld_demo_client');
+    sessionStorage.setItem('taxmeld_demo_mode', 'true');
+    onStart();
+    navigate('/');
+  };
+
+  return (
+    <div className="mx-auto flex min-h-[70vh] max-w-lg items-center px-4 py-10">
+      <form onSubmit={startDemo} className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700"><PlayCircle size={25} /></div>
+        <h1 className="mt-5 text-center text-2xl font-extrabold tracking-tight text-slate-950">Start your free demo</h1>
+        <p className="mt-2 text-center text-sm leading-6 text-slate-600">Enter your email to access the TaxMeld dashboard and create one client for free. No password or account is required.</p>
+        <label className="mt-6 block text-xs font-semibold text-slate-700">Work email</label>
+        <input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@firm.com" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-3 text-sm outline-none focus:border-emerald-500" />
+        <button className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"><ArrowRight size={16} /> Open free demo dashboard</button>
+        <p className="mt-3 text-center text-[11px] text-slate-500">Demo data is stored only in this browser and no email is sent.</p>
+      </form>
+    </div>
+  );
+}
+
 function FreeDemo() {
   const [demoClient, setDemoClient] = useState<DemoClient | null>(() => {
     try {
@@ -1518,6 +1595,9 @@ function FreeDemo() {
   );
 }
 
+// Kept temporarily for backwards-compatible browser state from the first demo release.
+void FreeDemo;
+
 function NavigationBar({ isAuthenticated, onLogoutRequest }: { isAuthenticated: boolean; onLogoutRequest: () => void }) {
   return (
     <nav className="border-b border-slate-200 bg-white shadow-sm px-4 sm:px-8 py-3 flex justify-between items-center sticky top-0 z-40">
@@ -1549,12 +1629,16 @@ function NavigationBar({ isAuthenticated, onLogoutRequest }: { isAuthenticated: 
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => sessionStorage.getItem('taxmeld_demo_mode') === 'true');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDemoUpgrade, setShowDemoUpgrade] = useState(false);
 
   const handleConfirmLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    sessionStorage.removeItem('taxmeld_demo_mode');
     setIsAuthenticated(false);
+    setIsDemoMode(false);
     setShowLogoutConfirm(false);
   };
 
@@ -1598,14 +1682,26 @@ export default function App() {
           </div>
         )}
 
+        {showDemoUpgrade && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+            <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
+              <button onClick={() => setShowDemoUpgrade(false)} className="absolute right-3 top-3 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close"><X size={18} /></button>
+              <div className="mx-auto inline-flex rounded-full bg-emerald-100 p-3 text-emerald-700"><CheckCircle2 size={25} /></div>
+              <h2 className="mt-4 text-lg font-extrabold text-slate-950">Your free demo is complete</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Create an account to add more clients, send portal links, upload documents, and use the full workflow.</p>
+              <div className="mt-5 grid gap-2"><Link to="/register" className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700">Create account</Link><Link to="/login" className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">Sign in</Link><button onClick={() => setShowDemoUpgrade(false)} className="py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Continue viewing demo</button></div>
+            </div>
+          </div>
+        )}
+
         <main className="py-2 sm:py-4">
           <Routes>
             <Route path="/login" element={<Login onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/register" element={<Register onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/forgot-password" element={<ForgotPassword onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/track/:token" element={<ClientTracker />} />
-            <Route path="/demo" element={<FreeDemo />} />
-            <Route path="/" element={isAuthenticated ? <Dashboard /> : <LandingPage />} />
+            <Route path="/demo" element={<DemoEmail onStart={() => setIsDemoMode(true)} />} />
+            <Route path="/" element={isAuthenticated ? <Dashboard /> : isDemoMode ? <Dashboard isDemo onDemoLimit={() => setShowDemoUpgrade(true)} /> : <LandingPage />} />
           </Routes>
         </main>
       </div>
