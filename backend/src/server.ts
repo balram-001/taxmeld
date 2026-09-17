@@ -12,6 +12,7 @@ import { isEmailConfigured } from './utils/sendEmail';
 import authRoutes from './routes/authRoutes';
 import clientRoutes from './routes/clientRoutes';
 import taskRoutes from './routes/taskRoutes';
+import demoLeadRoutes from './routes/demoLeadRoutes';
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ console.log(isEmailConfigured() ? 'Brevo email API configured.' : 'Brevo email A
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/demo-leads', demoLeadRoutes);
 
 // Root route (Fixes UptimeRobot 404)
 app.get('/', (_req, res) => {
