@@ -10,7 +10,7 @@ import {
   Shield, Plus, Search, ExternalLink, X, LogOut, 
   MessageCircle, Copy, Check, Loader2, Upload, FileText, SlidersHorizontal,
   ArrowLeft, Eye, Download, Trash2, AlertTriangle, CheckCheck, BarChart3, Users, FileCheck2,
-  LockKeyhole, ArrowRight, PlayCircle, CheckCircle2
+  LockKeyhole, ArrowRight, PlayCircle, CheckCircle2, UserPlus
 } from 'lucide-react';
 
 const AVAILABLE_SERVICES = [
@@ -1416,9 +1416,9 @@ function LandingPage() {
               <Link to="/login" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
                 Sign in
               </Link>
-              <a href="#demo" className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-50">
-                <PlayCircle size={17} /> View demo
-              </a>
+              <Link to="/demo" className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-50">
+                <PlayCircle size={17} /> Start free demo
+              </Link>
             </div>
             <p className="mt-4 text-xs text-slate-500">No credit card required for the current MVP.</p>
           </div>
@@ -1460,6 +1460,60 @@ function LandingPage() {
           <div className="mt-8 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs text-emerald-900"><LockKeyhole size={16} className="shrink-0" /> Client access uses individual secure tracking links. Always use a dedicated object-storage service before uploading real confidential files.</div>
         </div>
       </section>
+    </div>
+  );
+}
+
+type DemoClient = { name: string; panNumber: string; service: string; createdAt: string };
+
+function FreeDemo() {
+  const [demoClient, setDemoClient] = useState<DemoClient | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('taxmeld_demo_client') || 'null');
+    } catch {
+      return null;
+    }
+  });
+  const [showConversion, setShowConversion] = useState(false);
+  const [form, setForm] = useState({ name: '', panNumber: '', service: 'ITR Filing' });
+
+  const createDemoClient = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!form.name.trim() || !form.panNumber.trim()) return;
+    const client = { name: form.name.trim(), panNumber: form.panNumber.trim().toUpperCase(), service: form.service, createdAt: new Date().toISOString() };
+    localStorage.setItem('taxmeld_demo_client', JSON.stringify(client));
+    setDemoClient(client);
+    setShowConversion(true);
+  };
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-8 sm:py-14">
+      <div className="mx-auto max-w-2xl text-center">
+        <div className="mx-auto inline-flex rounded-2xl bg-emerald-100 p-3 text-emerald-700"><PlayCircle size={28} /></div>
+        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">Try TaxMeld for free</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">Create one sample client and explore the CA workflow without creating an account.</p>
+      </div>
+
+      {!demoClient ? (
+        <form onSubmit={createDemoClient} className="mx-auto mt-8 max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-7">
+          <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4"><div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700"><UserPlus size={20} /></div><div><h2 className="font-bold text-slate-900">Create your one free demo client</h2><p className="text-xs text-slate-500">Demo data stays only in this browser.</p></div></div>
+          <div className="space-y-4">
+            <div><label className="block text-xs font-semibold text-slate-700">Client name</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Ramesh Kumar" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-emerald-500" /></div>
+            <div><label className="block text-xs font-semibold text-slate-700">PAN number</label><input required value={form.panNumber} onChange={(e) => setForm({ ...form, panNumber: e.target.value.toUpperCase() })} placeholder="ABCDE1234F" maxLength={10} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-mono text-sm uppercase outline-none focus:border-emerald-500" /></div>
+            <div><label className="block text-xs font-semibold text-slate-700">Service</label><select value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value })} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500">{AVAILABLE_SERVICES.map((service) => <option key={service.id}>{service.label}</option>)}</select></div>
+          </div>
+          <button className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"><UserPlus size={16} /> Create free demo client</button>
+        </form>
+      ) : (
+        <div className="mx-auto mt-8 max-w-3xl space-y-5">
+          <div className="flex items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><div><p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Demo client created</p><h2 className="mt-1 text-2xl font-extrabold text-slate-900">{demoClient.name}</h2><p className="mt-1 font-mono text-xs text-slate-600">PAN: {demoClient.panNumber}</p></div><span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-emerald-700">{demoClient.service}</span></div>
+          <div className="grid gap-4 md:grid-cols-3">{[['1', 'Documents requested', 'Ready to send secure upload link'], ['2', 'Documents received', 'Client uploads appear here'], ['3', 'Final delivery', 'Send acknowledgement and track status']].map(([step, title, text]) => <div key={step} className="rounded-xl border border-slate-200 bg-white p-4"><span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700">{step}</span><h3 className="mt-3 text-sm font-bold text-slate-900">{title}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{text}</p></div>)}</div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><strong>This is your one-client demo.</strong> Create an account to send real portal links, receive documents, and manage unlimited clients.</div>
+          <div className="flex flex-col gap-3 sm:flex-row"><Link to="/register" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700">Create firm account <ArrowRight size={16} /></Link><Link to="/login" className="flex flex-1 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">Sign in</Link></div>
+        </div>
+      )}
+
+      {showConversion && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"><div className="relative w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl"><button onClick={() => setShowConversion(false)} className="absolute right-3 top-3 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close"><X size={18} /></button><div className="mx-auto inline-flex rounded-full bg-emerald-100 p-3 text-emerald-700"><CheckCircle2 size={25} /></div><h2 className="mt-4 text-lg font-extrabold text-slate-950">Your demo client is ready</h2><p className="mt-2 text-sm leading-6 text-slate-600">Create an account to unlock real client portals, document uploads and email delivery.</p><div className="mt-5 grid gap-2"><Link to="/register" className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700">Create account</Link><Link to="/login" className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">Sign in</Link><button onClick={() => setShowConversion(false)} className="py-2 text-xs font-semibold text-slate-500 hover:text-slate-800">Continue with demo</button></div></div></div>}
     </div>
   );
 }
@@ -1550,6 +1604,7 @@ export default function App() {
             <Route path="/register" element={<Register onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/forgot-password" element={<ForgotPassword onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/track/:token" element={<ClientTracker />} />
+            <Route path="/demo" element={<FreeDemo />} />
             <Route path="/" element={isAuthenticated ? <Dashboard /> : <LandingPage />} />
           </Routes>
         </main>
