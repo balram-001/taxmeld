@@ -4,6 +4,7 @@ dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
 
 import express from 'express';
 import cors from 'cors';
+import mongoSanitize from 'express-mongo-sanitize';
 import dotenv from 'dotenv';
 import path from 'path';
 import { connectDB } from './config/db';
@@ -41,6 +42,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(mongoSanitize());
 
 // ==========================================
 // 🛡️ STEP 1: RATE LIMITING (Brute Force Protection)
