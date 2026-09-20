@@ -5,6 +5,7 @@ dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
 import express from 'express';
 import cors from 'cors';
 import mongoSanitize from 'express-mongo-sanitize';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
 import { connectDB } from './config/db';
@@ -24,6 +25,7 @@ if (!process.env.JWT_SECRET) {
 
 const app = express();
 app.set('trust proxy', 1);
+app.use(helmet());
 const PORT = process.env.PORT || 5000;
 
 const allowedOrigins = (process.env.CLIENT_URL || 'https://taxmeld.vercel.app')
