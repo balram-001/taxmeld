@@ -44,10 +44,25 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use(mongoSanitize({
-  allowDots: true,
-  replaceWith: '_'
-}));
+// 🛡️ Custom NoSQL Injection Protection (Safe & Clean)
+app.use((req, res, next) => {
+  const sanitizeValue = (value: any): any => {
+    if (value && typeof value === 'object') {
+      for (const key of Object.keys(value)) {
+        if (key.startsWith('$') || key.includes('.')) {
+          delete value[key]; // Dangerous symbols hata do
+        } else {
+          sanitizeValue(value[key]);
+        }
+      }
+    }
+    return value;
+  };
+
+  if (req.body) req.body = sanitizeValue(req.body);
+  if (req.params) req.params = sanitizeValue(req.params);
+  next();
+});
 
 // ==========================================
 // 🛡️ STEP 1: RATE LIMITING (Brute Force Protection)
