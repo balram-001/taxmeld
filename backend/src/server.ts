@@ -44,7 +44,10 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use(mongoSanitize());
+app.use(mongoSanitize({
+  allowDots: true,
+  replaceWith: '_'
+}));
 
 // ==========================================
 // 🛡️ STEP 1: RATE LIMITING (Brute Force Protection)
