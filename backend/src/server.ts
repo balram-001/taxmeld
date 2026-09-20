@@ -13,6 +13,7 @@ import authRoutes from './routes/authRoutes';
 import clientRoutes from './routes/clientRoutes';
 import taskRoutes from './routes/taskRoutes';
 import demoLeadRoutes from './routes/demoLeadRoutes';
+import rateLimit from 'express-rate-limit'; // ✅ Import yahan hai
 
 dotenv.config();
 
@@ -23,14 +24,13 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const allowedOrigins = (process.env.CLIENT_URL || 'https://taxfollow.vercel.app')
+const allowedOrigins = (process.env.CLIENT_URL || 'https://taxmeld.vercel.app')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
 app.use(cors({
   origin(origin, callback) {
-    // Requests without an Origin header include health checks and server-to-server calls.
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
@@ -38,13 +38,33 @@ app.use(cors({
     callback(new Error('Origin is not allowed by CORS.'));
   },
 }));
+
 app.use(express.json());
+
+// ==========================================
+// 🛡️ STEP 1: RATE LIMITING (Brute Force Protection)
+// ==========================================
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Ek IP ko 15 minute mein max 100 request allow karega
+  message: { 
+    success: false,
+    message: "Bohot saari requests aa rahi hain. Kripya 15 minute baad try karein." 
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Ye limiter aapke sabhi /api routes par apply hoga
+app.use('/api', apiLimiter);
+// ==========================================
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 connectDB();
 console.log(isEmailConfigured() ? 'Brevo email API configured.' : 'Brevo email API is not configured.');
 
+// 🚀 Aapke API Routes (Limiter in sab par automatic lag jayega)
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/tasks', taskRoutes);

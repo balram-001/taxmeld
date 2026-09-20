@@ -39,7 +39,7 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
 
     // Send the client their upload and tracking link after the client record is saved.
     if (email) {
-      const frontendBaseUrl = process.env.CLIENT_BASE_URL || 'https://taxfollow.vercel.app';
+      const frontendBaseUrl = process.env.CLIENT_BASE_URL || 'https://taxmeld.vercel.app';
       const trackingUrl = `${frontendBaseUrl}/track/${trackingToken}`;
       const requirements = [
         ...(serviceType ? serviceType.split(', ').filter(Boolean) : []),
