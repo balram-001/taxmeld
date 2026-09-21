@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api';
 import { BACKEND_URL } from '../config';
@@ -416,7 +416,7 @@ export default function ClientTracker() {
                       <p className="font-semibold text-slate-800 text-sm">{previewTargetDoc.originalFileName || 'Document File'}</p>
                       <p className="text-slate-500 text-xs mt-1">Direct preview not supported for .{ext} files.</p>
                     </div>
-                    <main>
+                    <div>
                       <a
                         href={fileUrl}
                         download={previewTargetDoc.originalFileName || 'downloaded_file'}
@@ -424,7 +424,7 @@ export default function ClientTracker() {
                       >
                         <Download size={14} /> Download & View File
                       </a>
-                    </main>
+                    </div>
                   </div>
                 )}
               </div>
