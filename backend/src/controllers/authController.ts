@@ -9,8 +9,8 @@ import { sendOtpEmail } from '../utils/sendEmail';
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      res.status(400).json({ message: 'All fields are required.' });
+    if (!name || typeof name !== 'string' || !email || typeof email !== 'string' || !password || typeof password !== 'string') {
+      res.status(400).json({ message: 'All fields are required and must be valid text.' });
       return;
     }
 
@@ -53,6 +53,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, otp } = req.body;
+    if (!email || typeof email !== 'string' || !otp || typeof otp !== 'string') {
+      res.status(400).json({ message: 'Invalid email or OTP format.' });
+      return;
+    }
+
     const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
@@ -85,6 +90,13 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
+
+    // 🛡️ Safe check against NoSQL sanitization objects
+    if (!email || typeof email !== 'string' || !password || typeof password !== 'string') {
+      res.status(400).json({ message: 'Invalid email or password format.' });
+      return;
+    }
+
     const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
@@ -118,8 +130,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.body;
-    if (!email) {
-      res.status(400).json({ message: 'Email is required.' });
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ message: 'Valid email is required.' });
       return;
     }
 
@@ -142,13 +154,13 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// ================= VERIFY RESET OTP (STEP 2: VERIFY CODE & GENERATE LOGIN TOKEN) =================
+// ================= VERIFY RESET OTP (STEP 2: VERIFY CODE) =================
 export const verifyResetOtp = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, otp } = req.body;
 
-    if (!email || !otp) {
-      res.status(400).json({ message: 'Email and OTP are required.' });
+    if (!email || typeof email !== 'string' || !otp || typeof otp !== 'string') {
+      res.status(400).json({ message: 'Valid email and OTP are required.' });
       return;
     }
 
@@ -183,8 +195,8 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
   try {
     const { email, otp, newPassword } = req.body;
 
-    if (!email || !otp || !newPassword) {
-      res.status(400).json({ message: 'Email, OTP, and new password are required.' });
+    if (!email || typeof email !== 'string' || !otp || typeof otp !== 'string' || !newPassword || typeof newPassword !== 'string') {
+      res.status(400).json({ message: 'All fields must be valid text.' });
       return;
     }
 
