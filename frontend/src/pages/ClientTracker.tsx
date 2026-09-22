@@ -105,12 +105,31 @@ export default function ClientTracker() {
     ? data.client.serviceType.split(', ').filter(Boolean) 
     : [];
 
+  // ITR Filing ko alag-alag document boxes mein todne ka logic
+  const expandedSlots: any[] = [];
+  selectedServices.forEach((serviceName: string) => {
+    if (serviceName === 'ITR Filing') {
+      expandedSlots.push(
+        { name: 'Form 16', hint: 'TDS certificate issued by employer', isCustom: false },
+        { name: 'Bank Statement', hint: 'Savings/Current account statement for FY', isCustom: false },
+        { name: 'AIS / TIS / 26AS', hint: 'Annual Information Statement from tax portal', isCustom: false }
+      );
+    } else if (serviceName === 'GST Return') {
+      expandedSlots.push(
+        { name: 'Sales Invoices', hint: 'B2B/B2C sales bills', isCustom: false },
+        { name: 'Purchase Invoices', hint: 'Input tax credit bills', isCustom: false }
+      );
+    } else {
+      expandedSlots.push({
+        name: serviceName,
+        hint: AVAILABLE_SERVICES.find((s) => s.id === serviceName)?.hint || '',
+        isCustom: false,
+      });
+    }
+  });
+
   const allRequirementSlots = [
-    ...selectedServices.map((name: string) => ({
-      name,
-      hint: AVAILABLE_SERVICES.find((s) => s.id === name)?.hint || '',
-      isCustom: false,
-    })),
+    ...expandedSlots,
     ...(data.client.customRequirements || []).map((cr: any) => ({
       name: cr.name,
       hint: cr.hint || '',
