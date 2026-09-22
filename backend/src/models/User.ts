@@ -7,7 +7,17 @@ const userSchema = new Schema(
     password: { type: String, required: true },
     isVerified: { type: Boolean, default: false },
     verificationOtp: { type: String },
-    otpExpiresAt: { type: Date }
+    otpExpiresAt: { type: Date },
+    trialEndsAt: { 
+      type: Date, 
+      default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 Days from registration
+    },
+    subscriptionStatus: { 
+      type: String, 
+      enum: ['trial', 'active', 'expired'], 
+      default: 'trial' 
+    },
+    planType: { type: String, default: 'free_trial' }, // 'free_trial', 'basic_299'
   },
   { timestamps: true }
 );

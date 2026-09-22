@@ -23,6 +23,40 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    // --- TRIAL & 20-CLIENT LIMIT VALIDATION ---
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    const now = new Date();
+
+    // Check if 14-day trial has expired
+    if (user.subscriptionStatus === 'trial' && user.trialEndsAt && now > new Date(user.trialEndsAt)) {
+      user.subscriptionStatus = 'expired';
+      await user.save();
+    }
+
+    if (user.subscriptionStatus === 'expired') {
+      res.status(403).json({ 
+        message: 'Your 14-day free trial has ended. Please upgrade to the ₹299/mo plan to add more clients.' 
+      });
+      return;
+    }
+
+    // Check if client count has reached the 20 limit during trial
+    if (user.subscriptionStatus === 'trial') {
+      const currentClientCount = await Client.countDocuments({ userId });
+      if (currentClientCount >= 20) {
+        res.status(403).json({ 
+          message: 'Trial limit reached! You can add up to 20 clients during your 14-day free trial. Please upgrade to add more.' 
+        });
+        return;
+      }
+    }
+    // ------------------------------------------
+
     const trackingToken = crypto.randomBytes(16).toString('hex');
 
     const client = await Client.create({
