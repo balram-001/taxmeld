@@ -6,7 +6,7 @@ import { useToast } from '../toast';
 import { 
   Shield, Plus, Search, ExternalLink, X, 
   MessageCircle, Copy, Check, Loader2, FileText, SlidersHorizontal,
-  Eye, Download, Trash2, AlertTriangle, CheckCheck 
+  Eye, Download, Trash2, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles 
 } from 'lucide-react';
 
 const AVAILABLE_SERVICES = [
@@ -30,6 +30,11 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  // Trial and subscription states
+  const [userData, setUserData] = useState<any>(null);
+  const [daysLeft, setDaysLeft] = useState<number>(14);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [customReqs, setCustomReqs] = useState<{ name: string; hint: string }[]>([]);
   const [newReqName, setNewReqName] = useState('');
@@ -62,7 +67,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   });
   const [savingClient, setSavingClient] = useState(false);
 
-  const fetchClients = async () => {
+  const fetchClientsAndProfile = async () => {
     if (isDemo) {
       try {
         const savedDemoClient = JSON.parse(localStorage.getItem('taxmeld_demo_client') || 'null');
@@ -70,30 +75,48 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
       } catch {
         setClients([]);
       }
+      setPageLoading(false);
       return;
     }
+
     try {
-      const res = await API.get('/clients');
-      setClients(res.data || []);
+      // Fetch user profile for trial status & clients in parallel
+      const [profileRes, clientsRes] = await Promise.all([
+        API.get('/auth/profile').catch(() => ({ data: null })),
+        API.get('/clients')
+      ]);
+
+      if (profileRes.data) {
+        setUserData(profileRes.data);
+        if (profileRes.data.trialEndsAt) {
+          const diffTime = new Date(profileRes.data.trialEndsAt).getTime() - new Date().getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const remainingDays = diffDays > 0 ? diffDays : 0;
+          setDaysLeft(remainingDays);
+
+          if (remainingDays <= 0 || profileRes.data.subscriptionStatus === 'expired') {
+            setShowUpgradeModal(true);
+          }
+        }
+      }
+
+      setClients(clientsRes.data || []);
     } catch (err: any) {
-      console.error('Error fetching clients:', err);
+      console.error('Error fetching dashboard data:', err);
       if (err.response?.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         showToast('Your login session has expired. Please sign in again.', 'error');
       } else {
-        showToast(err.response?.data?.message || 'We could not load your clients. Please refresh and try again.', 'error');
+        showToast(err.response?.data?.message || 'We could not load your dashboard. Please refresh and try again.', 'error');
       }
+    } finally {
+      setPageLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchClients();
-    const timer = setTimeout(() => {
-      setPageLoading(false);
-    }, 800);
-
-    return () => clearTimeout(timer);
+    fetchClientsAndProfile();
   }, [isDemo]);
 
   const toggleService = (serviceId: string) => {
@@ -164,9 +187,13 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
       setIsModalOpen(false);
       setFormData({ name: '', panNumber: '', email: '', phone: '', services: [] });
       setCustomReqs([]);
-      fetchClients();
+      fetchClientsAndProfile();
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'We could not create this client. Please check the details and try again.', 'error');
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'We could not create this client. Please check the details and try again.';
+      showToast(errorMsg, 'error');
+      if (err.response?.status === 403) {
+        setShowUpgradeModal(true);
+      }
     } finally {
       setSavingClient(false);
     }
@@ -347,6 +374,68 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6">
+      {/* 14-Day Free Trial Live Countdown Banner */}
+      {userData && userData.subscriptionStatus === 'trial' && (
+        <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-white/10 rounded-xl">
+              <Clock size={20} className="text-emerald-200 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold">Free Trial Active ({daysLeft} Days Remaining)</p>
+              <p className="text-[11px] text-emerald-100">You can add up to 20 clients during your 14-day free trial period.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowUpgradeModal(true)}
+            className="px-4 py-2 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
+          >
+            Upgrade Plan ₹299/mo
+          </button>
+        </div>
+      )}
+
+      {/* Subscription / Upgrade Modal */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 text-center border border-slate-200">
+            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto border border-amber-200">
+              <ShieldAlert size={24} />
+            </div>
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-900">
+                {daysLeft <= 0 ? 'Free Trial Period Ended' : 'Upgrade CA Plan'}
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Your 14-day trial or 20-client limit has been reached. Subscribe to the ₹299/mo plan to continue managing your practice without interruptions.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-800">CA Professional Plan</span>
+                <span className="text-sm font-extrabold text-emerald-600">₹299 <span className="text-[10px] text-slate-500 font-normal">/ month</span></span>
+              </div>
+              <ul className="space-y-1.5 text-[11px] text-slate-600 pt-1">
+                <li className="flex items-center gap-1.5"><CheckCheck size={13} className="text-emerald-600" /> Unlimited Client Management</li>
+                <li className="flex items-center gap-1.5"><CheckCheck size={13} className="text-emerald-600" /> Secure Document Upload Portals</li>
+                <li className="flex items-center gap-1.5"><CheckCheck size={13} className="text-emerald-600" /> Live Status Tracking & WhatsApp Reminders</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => showToast('Payment gateway integration in progress. Contact support@taxmeld.com to activate.', 'success')}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Sparkles size={15} /> Upgrade to ₹299 Plan Now
+              </button>
+              <p className="text-[10px] text-slate-400">Secure payments powered by Razorpay / UPI</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">CA Practice Dashboard</h1>
@@ -356,6 +445,10 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
           onClick={() => {
             if (isDemo && clients.length >= 1) {
               onDemoLimit?.();
+              return;
+            }
+            if (daysLeft <= 0 || userData?.subscriptionStatus === 'expired') {
+              setShowUpgradeModal(true);
               return;
             }
             setIsModalOpen(true);
