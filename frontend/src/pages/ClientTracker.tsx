@@ -4,7 +4,7 @@ import API from '../api';
 import { BACKEND_URL } from '../config';
 import { useToast } from '../toast';
 import { 
-  Loader2, Upload, FileText, ArrowLeft, Eye, Download, Trash2, CheckCheck, X 
+  Loader2, Upload, FileText, ArrowLeft, Eye, Download, Trash2, CheckCheck, X, Plus 
 } from 'lucide-react';
 
 const AVAILABLE_SERVICES = [
@@ -21,6 +21,12 @@ export default function ClientTracker() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploadingStatus, setUploadingStatus] = useState<{ category: string; count: number } | null>(null);
+
+  // Additional custom slots added by client/user
+  const [extraCustomReqs, setExtraCustomReqs] = useState<{ name: string; hint: string }[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newDocName, setNewDocName] = useState('');
+  const [newDocHint, setNewDocHint] = useState('');
 
   const [viewDocOpen, setViewDocOpen] = useState(false);
   const [previewTargetDoc, setPreviewTargetDoc] = useState<any>(null);
@@ -76,6 +82,15 @@ export default function ClientTracker() {
     }
   };
 
+  const handleAddExtraSlot = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDocName.trim()) return;
+    setExtraCustomReqs([...extraCustomReqs, { name: newDocName.trim(), hint: newDocHint.trim() }]);
+    setNewDocName('');
+    setNewDocHint('');
+    setShowAddModal(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center gap-3">
@@ -105,7 +120,6 @@ export default function ClientTracker() {
     ? data.client.serviceType.split(', ').filter(Boolean) 
     : [];
 
-  // ITR Filing ko alag-alag document boxes mein todne ka logic
   const expandedSlots: any[] = [];
   selectedServices.forEach((serviceName: string) => {
     if (serviceName === 'ITR Filing') {
@@ -135,13 +149,18 @@ export default function ClientTracker() {
       hint: cr.hint || '',
       isCustom: true,
     })),
+    ...extraCustomReqs.map((cr) => ({
+      name: cr.name,
+      hint: cr.hint || '',
+      isCustom: true,
+    }))
   ];
 
   return (
     <div className="p-4 sm:p-8 max-w-2xl mx-auto space-y-5">
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex justify-between items-center">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm flex justify-between items-center">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{data.client.name}</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900">{data.client.name}</h1>
           <div className="flex flex-wrap gap-1 mt-1.5">
             {selectedServices.map((srv: string, idx: number) => (
               <span key={idx} className="px-2 py-0.5 text-[10px] rounded-md bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200">
@@ -151,7 +170,7 @@ export default function ClientTracker() {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[11px] text-slate-500">PAN</p>
+          <p className="text-[10px] text-slate-400 uppercase tracking-wider">PAN</p>
           <p className="font-mono text-xs sm:text-sm font-bold text-slate-800">{data.client.panNumber}</p>
         </div>
       </div>
@@ -187,10 +206,10 @@ export default function ClientTracker() {
           : 'Download Final Document';
 
         return (
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl p-5 shadow-md space-y-3">
+          <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl p-4 sm:p-5 shadow-md space-y-2">
             <div className="flex items-center gap-2">
-              <CheckCheck className="text-emerald-200" size={24} />
-              <h2 className="text-base sm:text-lg font-bold">{bannerTitle}</h2>
+              <CheckCheck className="text-emerald-200" size={22} />
+              <h2 className="text-sm sm:text-base font-bold">{bannerTitle}</h2>
             </div>
             <p className="text-xs text-emerald-100">{bannerDesc}</p>
             <div className="flex flex-wrap gap-2 pt-1">
@@ -199,9 +218,9 @@ export default function ClientTracker() {
                   key={`${file.fileUrl}-${index}`}
                   href={`${BACKEND_URL}/api/tasks/download/${token}/${finalAckTask._id}/${index}`}
                   download={file.originalFileName || 'Final_Document.pdf'}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white text-emerald-800 font-bold text-xs rounded-xl shadow-sm hover:bg-emerald-50 transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-800 font-bold text-xs rounded-lg shadow-sm hover:bg-emerald-50 transition cursor-pointer"
                 >
-                  <Download size={15} /> {(finalAckTask.files || []).length > 1 ? `Download File ${index + 1}` : btnLabel}
+                  <Download size={14} /> {(finalAckTask.files || []).length > 1 ? `Download File ${index + 1}` : btnLabel}
                 </a>
               ))}
               <button
@@ -209,26 +228,33 @@ export default function ClientTracker() {
                   setPreviewTargetDoc(ackFileItem);
                   setViewDocOpen(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-800/60 hover:bg-emerald-800 text-white font-semibold text-xs rounded-xl transition cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-800/60 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg transition cursor-pointer"
               >
-                <Eye size={14} /> Quick View
+                <Eye size={13} /> Quick View
               </button>
             </div>
           </div>
         );
       })()}
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-        <div>
-          <h2 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-1.5">
-            <Upload size={16} className="text-emerald-600" /> Document Submissions
-          </h2>
-          <p className="text-slate-500 text-xs mt-1">
-            Select and upload all requested documents below:
-          </p>
+      {/* Compact & Professional Document Submissions */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <Upload size={15} className="text-emerald-600" /> Document Submissions
+            </h2>
+            <p className="text-slate-500 text-[11px] mt-0.5">Upload requested files into their respective slots:</p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1 transition cursor-pointer border border-slate-200"
+          >
+            <Plus size={13} /> Add More
+          </button>
         </div>
 
-        <div className="space-y-4 pt-1">
+        <div className="space-y-2.5 pt-1">
           {allRequirementSlots.map((slot: any, idx: number) => {
             const matchedTask = data.tasks?.find(
               (t: any) => t.documentType === 'Client Document' && t.serviceCategory === slot.name
@@ -239,58 +265,51 @@ export default function ClientTracker() {
             const inputId = `file-input-${idx}`;
 
             return (
-              <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${slot.isCustom ? 'bg-indigo-500' : 'bg-emerald-500'}`}></span>
-                      {slot.name}
-                      {slot.isCustom && <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">Custom</span>}
+              <div key={idx} className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-300 transition">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${slot.isCustom ? 'bg-indigo-500' : 'bg-emerald-500'}`}></span>
+                    <h3 className="text-xs font-bold text-slate-900 truncate">{slot.name}</h3>
+                    <span className="text-[10px] font-medium text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded-full shrink-0">
+                      {uploadedFilesList.length} Uploaded
                     </span>
-                    {slot.hint && <p className="text-[11px] text-slate-500 mt-0.5">{slot.hint}</p>}
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-600 bg-slate-200 px-2.5 py-0.5 rounded-full">
-                    {uploadedFilesList.length} Files Uploaded
-                  </span>
-                </div>
+                  {slot.hint && <p className="text-[11px] text-slate-500 mt-0.5 pl-4 truncate">{slot.hint}</p>}
 
-                {uploadedFilesList.length > 0 && (
-                  <div className="space-y-2 pt-1">
-                    {uploadedFilesList.map((fileObj: any, fIdx: number) => (
-                      <div key={fIdx} className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
-                        <div className="flex items-center gap-2 truncate">
-                          <FileText size={16} className="text-emerald-600 shrink-0" />
-                          <div className="truncate">
-                            <p className="text-xs font-medium text-slate-800 truncate">{fileObj.originalFileName}</p>
-                            <p className="text-[9px] text-slate-400">
-                              {fileObj.uploadedAt ? new Date(fileObj.uploadedAt).toLocaleDateString() : 'Received'}
-                            </p>
+                  {/* Uploaded files list inside the small card */}
+                  {uploadedFilesList.length > 0 && (
+                    <div className="mt-2 space-y-1.5 pl-4">
+                      {uploadedFilesList.map((fileObj: any, fIdx: number) => (
+                        <div key={fIdx} className="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <FileText size={13} className="text-emerald-600 shrink-0" />
+                            <span className="font-medium text-slate-800 truncate">{fileObj.originalFileName}</span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => {
+                                setPreviewTargetDoc(fileObj);
+                                setViewDocOpen(true);
+                              }}
+                              className="px-2 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[10px] font-semibold transition cursor-pointer"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFile(matchedTask._id, fIdx)}
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => {
-                              setPreviewTargetDoc(fileObj);
-                              setViewDocOpen(true);
-                            }}
-                            className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded text-[11px] font-semibold transition cursor-pointer"
-                          >
-                            View
-                          </button>
-                          <button
-                            onClick={() => handleDeleteFile(matchedTask._id, fIdx)}
-                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
-                            title="Delete file"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                <div>
+                <div className="shrink-0 pt-1 sm:pt-0">
                   <input
                     id={inputId}
                     type="file"
@@ -306,21 +325,21 @@ export default function ClientTracker() {
                   />
                   <label
                     htmlFor={inputId}
-                    className={`w-full py-2.5 px-3 rounded-lg border border-dashed flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer transition ${
+                    className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition w-full sm:w-auto ${
                       isUploadingThis
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-700 cursor-not-allowed'
-                        : 'bg-white border-slate-300 text-slate-700 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700'
+                        : 'bg-white border-slate-300 text-slate-700 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 shadow-2xs'
                     }`}
                   >
                     {isUploadingThis ? (
                       <>
-                        <Loader2 className="animate-spin text-emerald-600" size={15} />
-                        <span>Uploading {uploadingStatus?.count} file(s)...</span>
+                        <Loader2 className="animate-spin text-emerald-600" size={13} />
+                        <span>Uploading...</span>
                       </>
                     ) : (
                       <>
-                        <Upload size={14} className="text-emerald-600" />
-                        <span>{uploadedFilesList.length > 0 ? '+ Add More Files' : `Upload ${slot.name}`}</span>
+                        <Upload size={13} className="text-emerald-600" />
+                        <span>{uploadedFilesList.length > 0 ? '+ Add More' : 'Upload'}</span>
                       </>
                     )}
                   </label>
@@ -329,12 +348,23 @@ export default function ClientTracker() {
             );
           })}
         </div>
+
+        {/* Add More Button Bottom Bar */}
+        <div className="pt-2 border-t border-slate-100 text-center">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1 cursor-pointer py-1"
+          >
+            <Plus size={14} /> Need to upload any other document? Add custom slot
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-5">Filing Status Timeline</h2>
+      {/* Filing Status Timeline */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+        <h2 className="text-sm font-bold text-slate-900 mb-4">Filing Status Timeline</h2>
 
-        <div className="space-y-5 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-slate-200">
+        <div className="space-y-4 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-slate-200">
           {(data.tasks && data.tasks.length > 0
             ? data.tasks.filter((t: any) => t.documentType !== 'Client Document' || t.title === 'Documents Uploaded')
             : []
@@ -356,9 +386,9 @@ export default function ClientTracker() {
                   {isCompleted ? '✓' : index + 1}
                 </div>
 
-                <div className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl">
-                  <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-semibold text-slate-900 text-xs sm:text-sm">{task.title}</h3>
+                <div className="flex-1 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
+                  <div className="flex justify-between items-center mb-0.5">
+                    <h3 className="font-semibold text-slate-900 text-xs">{task.title}</h3>
                     <span
                       className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
                         isCompleted
@@ -371,7 +401,7 @@ export default function ClientTracker() {
                       {task.status}
                     </span>
                   </div>
-                  {task.remarks && <p className="text-slate-500 text-[11px]">{task.remarks}</p>}
+                  {task.remarks && <p className="text-slate-500 text-[10px]">{task.remarks}</p>}
                 </div>
               </div>
             );
@@ -379,6 +409,59 @@ export default function ClientTracker() {
         </div>
       </div>
 
+      {/* Add Custom Document Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">Add Custom Document Slot</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleAddExtraSlot} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Document Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Rent Agreement"
+                  value={newDocName}
+                  onChange={(e) => setNewDocName(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Instructions / Hint (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 11 Months PDF scan"
+                  value={newDocHint}
+                  onChange={(e) => setNewDocHint(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-sm"
+                >
+                  Add Slot
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Document Viewer Modal */}
       {viewDocOpen && previewTargetDoc?.fileUrl && (() => {
         const fileUrl = `${BACKEND_URL}${previewTargetDoc.fileUrl}`;
         const rawName = previewTargetDoc.originalFileName || previewTargetDoc.fileUrl;
@@ -390,16 +473,15 @@ export default function ClientTracker() {
         return (
           <div className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-2 sm:p-4">
             <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl flex flex-col h-[85vh] overflow-hidden border border-slate-200">
-              <div className="p-3 sm:p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="p-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                 <button
                   onClick={() => setViewDocOpen(false)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"
                 >
-                  <ArrowLeft size={14} /> Back
+                  <ArrowLeft size={13} /> Back
                 </button>
                 <div className="text-center truncate max-w-xs px-2">
-                  <p className="text-xs font-semibold text-slate-800 truncate">{previewTargetDoc.originalFileName || 'Uploaded Document'}</p>
-                  <span className="text-[10px] text-slate-400 uppercase font-mono">{ext || 'file'}</span>
+                  <p className="text-xs font-semibold text-slate-800 truncate">{previewTargetDoc.originalFileName || 'Document'}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <a
@@ -408,49 +490,42 @@ export default function ClientTracker() {
                     target="_blank"
                     rel="noreferrer"
                     className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-slate-100 rounded-lg transition"
-                    title="Download File"
+                    title="Download"
                   >
-                    <Download size={16} />
+                    <Download size={15} />
                   </a>
                   <button
                     onClick={() => setViewDocOpen(false)}
                     className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg transition cursor-pointer"
                   >
-                    <X size={18} />
+                    <X size={16} />
                   </button>
                 </div>
               </div>
 
               <div className="flex-1 bg-slate-100 p-2 sm:p-4 overflow-auto flex items-center justify-center">
                 {isImage ? (
-                  <img src={fileUrl} alt="Submitted Document" className="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
+                  <img src={fileUrl} alt="Document" className="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
                 ) : isPdf || isTextOrCode ? (
                   <iframe src={fileUrl} className="w-full h-full rounded border-0 bg-white shadow-inner" title="Preview" />
                 ) : (
-                  <div className="text-center p-8 bg-white border border-slate-200 rounded-2xl shadow-sm max-w-md w-full space-y-4">
-                    <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto border border-emerald-100">
-                      <FileText size={30} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-800 text-sm">{previewTargetDoc.originalFileName || 'Document File'}</p>
-                      <p className="text-slate-500 text-xs mt-1">Direct preview not supported for .{ext} files.</p>
-                    </div>
-                    <div>
-                      <a
-                        href={fileUrl}
-                        download={previewTargetDoc.originalFileName || 'downloaded_file'}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
-                      >
-                        <Download size={14} /> Download & View File
-                      </a>
-                    </div>
+                  <div className="text-center p-6 bg-white border border-slate-200 rounded-xl shadow-sm max-w-sm w-full space-y-3">
+                    <FileText size={26} className="text-emerald-600 mx-auto" />
+                    <p className="font-semibold text-slate-800 text-xs">{previewTargetDoc.originalFileName}</p>
+                    <a
+                      href={fileUrl}
+                      download={previewTargetDoc.originalFileName}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold shadow-sm"
+                    >
+                      <Download size={13} /> Download File
+                    </a>
                   </div>
                 )}
               </div>
             </div>
           </div>
         );
-      })}
+      })()}
     </div>
   );
 }
