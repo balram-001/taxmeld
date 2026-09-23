@@ -33,6 +33,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       user.otpExpiresAt = otpExpiresAt;
       await user.save();
     } else {
+      // Lock the founding offer for the first 10 CA accounts. This value is
+      // stored on the user so a qualifying firm keeps its ₹299 price later.
+      const foundingSeatsTaken = await User.countDocuments({ monthlyPlanPrice: 299 });
+      const monthlyPlanPrice = foundingSeatsTaken < 10 ? 299 : 399;
+
       user = await User.create({
         name,
         email: email.toLowerCase(),
@@ -40,6 +45,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         isVerified: false,
         verificationOtp: otp,
         otpExpiresAt,
+        monthlyPlanPrice,
       });
     }
 
@@ -234,7 +240,7 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     const user = await User.findById(userId).select(
-      'name email trialEndsAt subscriptionStatus planType isVerified createdAt'
+      'name email trialEndsAt subscriptionStatus planType monthlyPlanPrice isVerified createdAt'
     );
 
     if (!user) {
@@ -252,6 +258,14 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       await user.save();
     }
 
+    // Accounts created before pricing was introduced are allocated the next
+    // available launch seat the first time they open their profile.
+    if (!user.monthlyPlanPrice) {
+      const foundingSeatsTaken = await User.countDocuments({ monthlyPlanPrice: 299 });
+      user.monthlyPlanPrice = foundingSeatsTaken < 10 ? 299 : 399;
+      await user.save();
+    }
+
     res.status(200).json({
       id: user._id,
       name: user.name,
@@ -259,6 +273,7 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       trialEndsAt: user.trialEndsAt,
       subscriptionStatus: user.subscriptionStatus,
       planType: user.planType,
+      monthlyPlanPrice: user.monthlyPlanPrice,
       createdAt: user.createdAt,
     });
   } catch (error: any) {

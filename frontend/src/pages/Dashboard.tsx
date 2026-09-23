@@ -6,7 +6,7 @@ import { useToast } from '../toast';
 import { 
   Shield, Plus, Search, ExternalLink, X, 
   MessageCircle, Copy, Check, Loader2, FileText, SlidersHorizontal,
-  Eye, Download, Trash2, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles 
+  Eye, Download, Trash2, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles, ArrowLeft
 } from 'lucide-react';
 
 const AVAILABLE_SERVICES = [
@@ -35,6 +35,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   const [userData, setUserData] = useState<any>(null);
   const [daysLeft, setDaysLeft] = useState<number>(14);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const upgradeHistoryPushed = useRef(false);
 
   const [customReqs, setCustomReqs] = useState<{ name: string; hint: string }[]>([]);
   const [newReqName, setNewReqName] = useState('');
@@ -118,6 +119,39 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   useEffect(() => {
     fetchClientsAndProfile();
   }, [isDemo]);
+
+  // Treat the upgrade screen like a real mobile sheet. A browser/device Back
+  // press closes it and leaves the CA on the dashboard instead of navigating
+  // away from the workspace.
+  useEffect(() => {
+    if (!showUpgradeModal || isDemo) return;
+
+    if (!upgradeHistoryPushed.current) {
+      window.history.pushState(
+        { ...(window.history.state || {}), taxmeldUpgradeSheet: true },
+        '',
+        window.location.href
+      );
+      upgradeHistoryPushed.current = true;
+    }
+
+    const closeOnBrowserBack = () => {
+      upgradeHistoryPushed.current = false;
+      setShowUpgradeModal(false);
+    };
+
+    window.addEventListener('popstate', closeOnBrowserBack);
+    return () => window.removeEventListener('popstate', closeOnBrowserBack);
+  }, [showUpgradeModal, isDemo]);
+
+  const returnToDashboard = () => {
+    if (upgradeHistoryPushed.current) {
+      upgradeHistoryPushed.current = false;
+      window.history.back();
+      return;
+    }
+    setShowUpgradeModal(false);
+  };
 
   const toggleService = (serviceId: string) => {
     setFormData((prev) => {
@@ -367,6 +401,9 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     c.panNumber?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const monthlyPlanPrice = userData?.monthlyPlanPrice === 399 ? 399 : 299;
+  const hasFoundingPrice = monthlyPlanPrice === 299;
+
   const ackTask = clientTasks.find(
     (t) => t.title === 'Acknowledgement Generated' || t.documentType === 'ITR Acknowledgement'
   );
@@ -403,45 +440,67 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
             onClick={() => setShowUpgradeModal(true)}
             className="px-4 py-2 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
           >
-            Upgrade Plan ₹299/mo
+            Upgrade Plan ₹{monthlyPlanPrice}/mo
           </button>
         </div>
       )}
 
       {/* Subscription / Upgrade Modal */}
       {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 text-center border border-slate-200">
-            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto border border-amber-200">
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-[28px] sm:rounded-3xl max-w-md w-full max-h-[92dvh] overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-5 text-center border border-slate-200 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-center justify-between text-left">
+              <button
+                onClick={returnToDashboard}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-emerald-700 transition cursor-pointer"
+              >
+                <ArrowLeft size={16} /> Back to Dashboard
+              </button>
+              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-amber-800">Limited launch offer</span>
+            </div>
+
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 text-amber-700 flex items-center justify-center mx-auto border border-amber-200 shadow-sm">
               <ShieldAlert size={24} />
             </div>
             <div>
-              <h2 className="text-lg font-extrabold text-slate-900">
-                {daysLeft <= 0 ? 'Free Trial Period Ended' : 'Upgrade CA Plan'}
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                {daysLeft <= 0 ? 'Your Free Trial Has Ended' : 'Unlock Your Full Practice'}
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Your 14-day trial or 20-client limit has been reached. Subscribe to the ₹299/mo plan to continue managing your practice without interruptions.
+              <p className="text-xs sm:text-sm leading-relaxed text-slate-500 mt-2">
+                Your 14-day trial or 20-client limit has been reached. Upgrade to keep every client workflow moving without interruption.
               </p>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-800">CA Professional Plan</span>
-                <span className="text-sm font-extrabold text-emerald-600">₹299 <span className="text-[10px] text-slate-500 font-normal">/ month</span></span>
+            <div className="bg-gradient-to-br from-slate-50 to-emerald-50/50 border border-emerald-100 rounded-2xl p-4 text-left space-y-3">
+              <div className="flex justify-between items-start gap-3">
+                <div>
+                  <span className="text-sm font-extrabold text-slate-800">CA Professional Plan</span>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {hasFoundingPrice ? 'Your founding price is locked for your firm.' : 'Standard price — founding seats are fully claimed.'}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xl font-extrabold text-emerald-600">₹{monthlyPlanPrice}</span>
+                  <span className="text-[10px] text-slate-500 font-medium"> / month</span>
+                  {hasFoundingPrice && <p className="text-[9px] font-bold text-amber-700">First 10 CA firms</p>}
+                </div>
               </div>
-              <ul className="space-y-1.5 text-[11px] text-slate-600 pt-1">
-                <li className="flex items-center gap-1.5"><CheckCheck size={13} className="text-emerald-600" /> Unlimited Client Management</li>
-                <li className="flex items-center gap-1.5"><CheckCheck size={13} className="text-emerald-600" /> Secure Document Upload Portals</li>
-                <li className="flex items-center gap-1.5"><CheckCheck size={13} className="text-emerald-600" /> Live Status Tracking & WhatsApp Reminders</li>
+              <ul className="space-y-2 text-xs text-slate-600 pt-1">
+                <li className="flex items-center gap-2"><CheckCheck size={14} className="text-emerald-600 shrink-0" /> Unlimited Client Management</li>
+                <li className="flex items-center gap-2"><CheckCheck size={14} className="text-emerald-600 shrink-0" /> Secure Document Upload Portals</li>
+                <li className="flex items-center gap-2"><CheckCheck size={14} className="text-emerald-600 shrink-0" /> Live Status Tracking & WhatsApp Reminders</li>
               </ul>
             </div>
 
-            <div className="space-y-2 pt-1">
+            <div className="space-y-3 pt-1">
               <button
-                onClick={() => showToast('Payment gateway integration in progress. Contact support@taxmeld.com to activate.', 'success')}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+                onClick={() => showToast('Payment gateway integration is in progress. Contact support@taxmeld.com to activate your plan.', 'success')}
+                className="w-full min-h-12 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-sm font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-2"
               >
-                <Sparkles size={15} /> Upgrade to ₹299 Plan Now
+                <Sparkles size={16} /> Upgrade to ₹{monthlyPlanPrice}/mo
+              </button>
+              <button onClick={returnToDashboard} className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer">
+                Continue on Dashboard
               </button>
               <p className="text-[10px] text-slate-400">Secure payments powered by Razorpay / UPI</p>
             </div>
