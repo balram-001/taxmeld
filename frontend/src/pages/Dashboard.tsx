@@ -148,6 +148,19 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     e.preventDefault();
     if (savingClient) return;
 
+    if (!isDemo && (daysLeft <= 0 || userData?.subscriptionStatus === 'expired')) {
+      setIsModalOpen(false);
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    if (!isDemo && userData?.subscriptionStatus === 'trial' && clients.length >= 20) {
+      setIsModalOpen(false);
+      setShowUpgradeModal(true);
+      showToast('Trial limit reached! Upgrade to add more than 20 clients.', 'error');
+      return;
+    }
+
     if (isDemo) {
       if (clients.length >= 1) {
         setIsModalOpen(false);
@@ -448,6 +461,10 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
               return;
             }
             if (daysLeft <= 0 || userData?.subscriptionStatus === 'expired') {
+              setShowUpgradeModal(true);
+              return;
+            }
+            if (userData?.subscriptionStatus === 'trial' && clients.length >= 20) {
               setShowUpgradeModal(true);
               return;
             }

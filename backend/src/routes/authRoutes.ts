@@ -6,7 +6,9 @@ import {
   forgotPassword,
   verifyResetOtp,
   resetPassword,
+  getProfile,
 } from '../controllers/authController';
+import { protect } from '../middleware/authMiddleware';
 
 const router = Router();
 
@@ -16,5 +18,6 @@ router.post('/login', login);
 router.post('/forgot-password', forgotPassword);
 router.post('/verify-reset-otp', verifyResetOtp);
 router.post('/reset-password', resetPassword);
+router.get('/profile', protect, getProfile);
 
 export default router;

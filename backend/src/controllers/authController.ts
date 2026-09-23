@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { User } from '../models/User';
 import { sendOtpEmail } from '../utils/sendEmail';
+import { AuthRequest } from '../middleware/authMiddleware';
 
 // ================= REGISTER =================
 export const register = async (req: Request, res: Response): Promise<void> => {
@@ -220,5 +221,47 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     res.status(200).json({ message: 'Password has been reset successfully. Please login with your new password.' });
   } catch (error: any) {
     res.status(500).json({ message: 'Error resetting password', error: error.message });
+  }
+};
+
+// ================= CURRENT USER PROFILE / TRIAL STATUS =================
+export const getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: 'Not authorized.' });
+      return;
+    }
+
+    const user = await User.findById(userId).select(
+      'name email trialEndsAt subscriptionStatus planType isVerified createdAt'
+    );
+
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+
+    // Keep the stored status in sync even if the user has not attempted to add a client.
+    if (
+      user.subscriptionStatus === 'trial' &&
+      user.trialEndsAt &&
+      new Date() > user.trialEndsAt
+    ) {
+      user.subscriptionStatus = 'expired';
+      await user.save();
+    }
+
+    res.status(200).json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      trialEndsAt: user.trialEndsAt,
+      subscriptionStatus: user.subscriptionStatus,
+      planType: user.planType,
+      createdAt: user.createdAt,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Unable to load profile.', error: error.message });
   }
 };
