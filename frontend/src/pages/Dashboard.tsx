@@ -117,6 +117,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   };
 
   useEffect(() => {
+    document.title = "CA Practice Dashboard | TaxMeld";
     fetchClientsAndProfile();
   }, [isDemo]);
 
