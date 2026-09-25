@@ -26,6 +26,10 @@ const userSchema = new Schema(
     // New Fields for MacroDroid Payment Tracking
     utrNumber: { type: String, default: null },
     subscriptionExpiresAt: { type: Date, default: null },
+
+    // Naye fields 15-day account soft delete ke liye:
+    isDeleted: { type: Boolean, default: false },
+    deletionRequestedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

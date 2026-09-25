@@ -7,6 +7,7 @@ import {
   verifyResetOtp,
   resetPassword,
   getProfile,
+  deleteAccount, // <-- Ise import kar lo
 } from '../controllers/authController';
 import { protect } from '../middleware/authMiddleware';
 
@@ -19,5 +20,8 @@ router.post('/forgot-password', forgotPassword);
 router.post('/verify-reset-otp', verifyResetOtp);
 router.post('/reset-password', resetPassword);
 router.get('/profile', protect, getProfile);
+
+// <-- Yeh raha naya delete account route:
+router.delete('/account', protect, deleteAccount);
 
 export default router;

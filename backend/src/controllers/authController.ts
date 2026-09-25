@@ -33,8 +33,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       user.otpExpiresAt = otpExpiresAt;
       await user.save();
     } else {
-      // Lock the founding offer for the first 10 CA accounts. This value is
-      // stored on the user so a qualifying firm keeps its ₹299 price later.
       const foundingSeatsTaken = await User.countDocuments({ monthlyPlanPrice: 299 });
       const monthlyPlanPrice = foundingSeatsTaken < 10 ? 299 : 399;
 
@@ -98,7 +96,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
-    // 🛡️ Safe check against NoSQL sanitization objects
     if (!email || typeof email !== 'string' || !password || typeof password !== 'string') {
       res.status(400).json({ message: 'Invalid email or password format.' });
       return;
@@ -122,6 +119,24 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Check if account was soft-deleted
+    if (user.isDeleted) {
+      const daysPassed = user.deletionRequestedAt 
+        ? (new Date().getTime() - new Date(user.deletionRequestedAt).getTime()) / (1000 * 60 * 60 * 24)
+        : 0;
+
+      if (daysPassed > 15) {
+        await User.findByIdAndDelete(user._id);
+        res.status(401).json({ message: 'Account has been permanently deleted after 15 days grace period.' });
+        return;
+      } else {
+        // Auto-restore account since user logged back in within 15 days
+        user.isDeleted = false;
+        user.deletionRequestedAt = undefined;
+        await user.save();
+      }
+    }
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
     res.status(200).json({
       message: 'Login successful',
@@ -133,7 +148,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// ================= FORGOT PASSWORD (STEP 1: SEND RESET OTP) =================
+// ================= FORGOT PASSWORD =================
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.body;
@@ -161,7 +176,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// ================= VERIFY RESET OTP (STEP 2: VERIFY CODE) =================
+// ================= VERIFY RESET OTP =================
 export const verifyResetOtp = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, otp } = req.body;
@@ -197,7 +212,7 @@ export const verifyResetOtp = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// ================= RESET PASSWORD (STEP 3: SAVE NEW PASSWORD) =================
+// ================= RESET PASSWORD =================
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, otp, newPassword } = req.body;
@@ -230,7 +245,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// ================= CURRENT USER PROFILE / TRIAL STATUS =================
+// ================= CURRENT USER PROFILE =================
 export const getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -248,7 +263,6 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // Keep the stored status in sync even if the user has not attempted to add a client.
     if (
       user.subscriptionStatus === 'trial' &&
       user.trialEndsAt &&
@@ -258,8 +272,6 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       await user.save();
     }
 
-    // Accounts created before pricing was introduced are allocated the next
-    // available launch seat the first time they open their profile.
     if (!user.monthlyPlanPrice) {
       const foundingSeatsTaken = await User.countDocuments({ monthlyPlanPrice: 299 });
       user.monthlyPlanPrice = foundingSeatsTaken < 10 ? 299 : 399;
@@ -278,5 +290,28 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
     });
   } catch (error: any) {
     res.status(500).json({ message: 'Unable to load profile.', error: error.message });
+  }
+};
+
+// ================= DELETE ACCOUNT (15-DAY SOFT DELETE) =================
+export const deleteAccount = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: 'Not authorized.' });
+      return;
+    }
+
+    await User.findByIdAndUpdate(userId, {
+      isDeleted: true,
+      deletionRequestedAt: new Date(),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Account scheduled for permanent deletion in 15 days.',
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error scheduling account deletion', error: error.message });
   }
 };
