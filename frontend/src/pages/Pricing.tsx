@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const Pricing: React.FC = () => {
-const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
   const navigate = useNavigate();
 
   // Polling trigger: Check if payment is verified by MacroDroid webhook
@@ -32,7 +32,7 @@ const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
     return () => clearInterval(interval);
   }, [navigate]);
 
-  // Yahan apni real UPI ID daal dein (jaise number@paytm ya id@oksbi)
+  // UPI configuration
   const upiId = "7999422714-m7e1@axl";
   const amount = "299";
   const payeeName = "TaxMeld";
@@ -62,8 +62,8 @@ const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
               Your payment has been successfully verified. You have full access to TaxMeld.
             </p>
             <button
-              onClick={() => navigate('/dashboard')}
-              className="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md font-medium hover:bg-indigo-700"
+              onClick={() => navigate('/')}
+              className="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md font-medium hover:bg-indigo-700 cursor-pointer transition"
             >
               Go to Dashboard
             </button>
@@ -75,7 +75,7 @@ const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
                 Founding Seat Offer
               </span>
               <h2 className="mt-4 text-4xl font-extrabold text-gray-900">₹{amount} <span className="text-base font-medium text-gray-500">/ month</span></h2>
-              <p className="mt-2 text-sm text-gray-500">Scan the QR code below via PhonePe, GPay, or Paytm.</p>
+              <p className="mt-2 text-sm text-gray-500">Scan the QR code below or click the button to pay via app.</p>
             </div>
 
             {/* UPI QR Code Image & Details */}
@@ -92,17 +92,18 @@ const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
             <div className="mt-4">
               <a 
                 href={upiDeepLink}
-                className="block w-full bg-green-600 text-white text-center py-2 px-4 rounded-md font-medium text-sm hover:bg-green-700 shadow-sm"
+                className="block w-full bg-green-600 text-white text-center py-2.5 px-4 rounded-md font-medium text-sm hover:bg-green-700 shadow-sm transition"
               >
                 Pay via GPay / PhonePe (Mobile App)
               </a>
             </div>
 
-            <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-md p-4 text-sm text-yellow-800 text-center">
-              <p className="font-semibold">Waiting for Payment...</p>
-              <p className="mt-1 text-xs text-yellow-600">
-                Screen automatically update ho jayegi jaise hi payment confirm hoga!
-              </p>
+            {/* Professional Waiting / Loading Indicator */}
+            <div className="mt-6 flex items-center justify-center space-x-3 py-3 border-t border-gray-100">
+              <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-xs font-medium text-gray-500">
+                Awaiting payment confirmation...
+              </span>
             </div>
           </div>
         )}
