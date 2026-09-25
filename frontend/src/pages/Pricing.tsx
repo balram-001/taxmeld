@@ -3,8 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const Pricing: React.FC = () => {
-  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
-  const [loading, setLoading] = useState<boolean>(false);
+const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
   const navigate = useNavigate();
 
   // Polling trigger: Check if payment is verified by MacroDroid webhook
