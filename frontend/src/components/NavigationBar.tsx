@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LogOut, Trash2 } from 'lucide-react';
+import { LogOut, Trash2, CreditCard } from 'lucide-react';
 
 interface NavigationBarProps {
   isAuthenticated: boolean;
@@ -45,6 +45,16 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
                   <p className="text-xs text-slate-400 font-medium">Signed in as</p>
                   <p className="text-xs font-bold text-slate-800 truncate">{userEmail}</p>
                 </div>
+
+                {/* Subscription & Pricing Link */}
+                <Link
+                  to="/pricing"
+                  onClick={() => setDropdownOpen(false)}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer transition"
+                >
+                  <CreditCard size={14} className="text-indigo-500" /> Subscription & Pricing
+                </Link>
+
                 <button
                   onClick={() => {
                     setDropdownOpen(false);
@@ -52,7 +62,7 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
                   }}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer transition"
                 >
-                  <LogOut size={14} className="text-slate-500" /> Logout
+                  <LogOut size= {14} className="text-slate-500" /> Logout
                 </button>
                 <button
                   onClick={() => {
