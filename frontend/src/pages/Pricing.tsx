@@ -75,7 +75,7 @@ const Pricing: React.FC = () => {
                 Founding Seat Offer
               </span>
               <h2 className="mt-4 text-4xl font-extrabold text-gray-900">₹{amount} <span className="text-base font-medium text-gray-500">/ month</span></h2>
-              <p className="mt-2 text-sm text-gray-500">Scan the QR code below or click the button to pay via app.</p>
+              <p className="mt-2 text-sm text-gray-500">Scan the QR code below or click the button to pay securely via mobile.</p>
             </div>
 
             {/* UPI QR Code Image & Details */}
@@ -88,22 +88,14 @@ const Pricing: React.FC = () => {
               <p className="mt-3 text-xs font-semibold text-gray-700">UPI ID: {upiId}</p>
             </div>
 
-            {/* Mobile Direct Pay Button */}
-            <div className="mt-4">
+            {/* Mobile Direct Pay Button with Generic Text */}
+            <div className="mt-6">
               <a 
                 href={upiDeepLink}
-                className="block w-full bg-green-600 text-white text-center py-2.5 px-4 rounded-md font-medium text-sm hover:bg-green-700 shadow-sm transition"
+                className="block w-full bg-green-600 text-white text-center py-3 px-4 rounded-xl font-semibold text-sm hover:bg-green-700 shadow-sm transition"
               >
-                Pay via GPay / PhonePe (Mobile App)
+                Pay via Any UPI App
               </a>
-            </div>
-
-            {/* Professional Waiting / Loading Indicator */}
-            <div className="mt-6 flex items-center justify-center space-x-3 py-3 border-t border-gray-100">
-              <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-xs font-medium text-gray-500">
-                Awaiting payment confirmation...
-              </span>
             </div>
           </div>
         )}
