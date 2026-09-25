@@ -5,13 +5,12 @@ import { LogOut, Trash2 } from 'lucide-react';
 interface NavigationBarProps {
   isAuthenticated: boolean;
   onLogoutRequest: () => void;
-  onDeleteAccount?: () => void;
+  onDeleteAccount: () => void;
 }
 
 export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDeleteAccount }: NavigationBarProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  // Local storage se user email nikalna
   const userStr = localStorage.getItem('user');
   let userEmail = "ca@taxmeld.com";
   try {
@@ -23,7 +22,6 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
     userEmail = "ca@taxmeld.com";
   }
 
-  // Email ka pehla letter uppercase mein avatar ke liye
   const initial = userEmail ? userEmail.charAt(0).toUpperCase() : 'C';
 
   return (
@@ -34,7 +32,6 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
       <div className="flex items-center gap-3 relative">
         {isAuthenticated ? (
           <div className="relative">
-            {/* Google-style Profile Circle Avatar */}
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-sm hover:bg-indigo-700 transition cursor-pointer"
@@ -42,7 +39,6 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
               {initial}
             </button>
 
-            {/* Dropdown Menu */}
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50 text-slate-700">
                 <div className="px-4 py-2 border-b border-slate-100">
@@ -61,7 +57,7 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
                 <button
                   onClick={() => {
                     setDropdownOpen(false);
-                    if (onDeleteAccount) onDeleteAccount();
+                    onDeleteAccount();
                   }}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer transition border-t border-slate-100"
                 >

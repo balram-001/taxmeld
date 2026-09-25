@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { X, LogOut, CheckCircle2 } from 'lucide-react';
+import { X, LogOut, CheckCircle2, Trash2 } from 'lucide-react';
+import axios from 'axios';
 
 import NavigationBar from './components/NavigationBar';
 import Dashboard from './pages/Dashboard';
@@ -16,6 +17,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => sessionStorage.getItem('taxmeld_demo_mode') === 'true');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDemoUpgrade, setShowDemoUpgrade] = useState(false);
 
   const handleConfirmLogout = () => {
@@ -27,14 +29,37 @@ export default function App() {
     setShowLogoutConfirm(false);
   };
 
+  const handleConfirmDelete = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await axios.delete('https://taxmeld-backend.onrender.com/api/auth/account', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+    } catch (err) {
+      console.error('Error deleting account from backend:', err);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      sessionStorage.removeItem('taxmeld_demo_mode');
+      setIsAuthenticated(false);
+      setIsDemoMode(false);
+      setShowDeleteConfirm(false);
+      window.location.href = '/login';
+    }
+  };
+
   return (
     <Router>
       <div className="min-h-screen bg-slate-100 text-slate-900">
         <NavigationBar 
           isAuthenticated={isAuthenticated} 
           onLogoutRequest={() => setShowLogoutConfirm(true)} 
+          onDeleteAccount={() => setShowDeleteConfirm(true)}
         />
 
+        {/* Logout Confirmation Modal */}
         {showLogoutConfirm && (
           <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
             <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
@@ -61,6 +86,39 @@ export default function App() {
                   className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition shadow-sm"
                 >
                   Yes, Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Account Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+              <div className="w-12 h-12 rounded-full bg-rose-100 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto">
+                <Trash2 size={22} />
+              </div>
+              <div className="text-center">
+                <h3 className="text-base font-bold text-slate-900">Delete Account Permanently?</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  This action cannot be undone. All your clients, workflow data, and subscription details will be deleted permanently.
+                </p>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition shadow-sm"
+                >
+                  Yes, Delete
                 </button>
               </div>
             </div>
