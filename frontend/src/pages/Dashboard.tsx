@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import API from '../api';
 import { BACKEND_URL } from '../config';
 import { useToast } from '../toast';
@@ -17,6 +17,7 @@ const AVAILABLE_SERVICES = [
 ];
 
 export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: boolean; onDemoLimit?: () => void }) {
+  const navigate = useNavigate(); // ✅ Added for routing to Pricing page
   const { showToast } = useToast();
   const caName = (() => {
     try {
@@ -81,7 +82,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     }
 
     try {
-      // Fetch user profile for trial status & clients in parallel
       const [profileRes, clientsRes] = await Promise.all([
         API.get('/auth/profile').catch(() => ({ data: null })),
         API.get('/clients')
@@ -121,9 +121,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     fetchClientsAndProfile();
   }, [isDemo]);
 
-  // Treat the upgrade screen like a real mobile sheet. A browser/device Back
-  // press closes it and leaves the CA on the dashboard instead of navigating
-  // away from the workspace.
   useEffect(() => {
     if (!showUpgradeModal || isDemo) return;
 
@@ -192,7 +189,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     if (!isDemo && userData?.subscriptionStatus === 'trial' && clients.length >= 20) {
       setIsModalOpen(false);
       setShowUpgradeModal(true);
-      showToast('Trial limit reached! Upgrade to add more than 20 clients.', 'error');
       return;
     }
 
@@ -438,7 +434,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
             </div>
           </div>
           <button
-            onClick={() => setShowUpgradeModal(true)}
+            onClick={() => navigate('/pricing')} // ✅ Redirects to Pricing page
             className="px-4 py-2 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
           >
             Upgrade Plan ₹{monthlyPlanPrice}/mo
@@ -495,7 +491,10 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
 
             <div className="space-y-3 pt-1">
               <button
-                onClick={() => showToast('Payment gateway integration is in progress. Contact support@taxmeld.com to activate your plan.', 'success')}
+                onClick={() => {
+                  setShowUpgradeModal(false);
+                  navigate('/pricing'); // ✅ Redirects directly to Pricing/QR payment page
+                }}
                 className="w-full min-h-12 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-sm font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-2"
               >
                 <Sparkles size={16} /> Upgrade to ₹{monthlyPlanPrice}/mo
@@ -503,7 +502,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
               <button onClick={returnToDashboard} className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer">
                 Continue on Dashboard
               </button>
-              <p className="text-[10px] text-slate-400">Secure payments powered by Razorpay / UPI</p>
+              <p className="text-[10px] text-slate-400">Secure automated UPI verification</p>
             </div>
           </div>
         </div>
@@ -1069,7 +1068,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
                         key={srv.id}
                         type="button"
                         onClick={() => toggleService(srv.id)}
-                        className={`p-2.5 rounded-lg border text-xs font-medium flex items-center justify-between cursor-pointer transition ${
+                        className={`p-2.5 rounded-lg border text-xs font-medium flex items-center justify-center cursor-pointer transition ${
                           isSelected
                             ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-semibold'
                             : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
