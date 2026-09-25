@@ -14,7 +14,7 @@ const userSchema = new Schema(
     },
     subscriptionStatus: { 
       type: String, 
-      enum: ['trial', 'active', 'expired'], 
+      enum: ['trial', 'pending', 'active', 'expired'], // 'pending' added for MacroDroid verification
       default: 'trial' 
     },
     planType: { type: String, default: 'free_trial' }, // 'free_trial', 'basic_299'
@@ -22,6 +22,10 @@ const userSchema = new Schema(
     // CA firms receive the founding price; every later account receives the
     // standard CA Professional price.
     monthlyPlanPrice: { type: Number, enum: [299, 399] },
+    
+    // New Fields for MacroDroid Payment Tracking
+    utrNumber: { type: String, default: null },
+    subscriptionExpiresAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

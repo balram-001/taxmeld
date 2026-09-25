@@ -15,7 +15,8 @@ import authRoutes from './routes/authRoutes';
 import clientRoutes from './routes/clientRoutes';
 import taskRoutes from './routes/taskRoutes';
 import demoLeadRoutes from './routes/demoLeadRoutes';
-import rateLimit from 'express-rate-limit'; // ✅ Import yahan hai
+import paymentRoutes from './routes/paymentRoutes'; // ✅ Payment & Webhook Routes Added
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
@@ -25,7 +26,10 @@ if (!process.env.JWT_SECRET) {
 
 const app = express();
 app.set('trust proxy', 1);
+
+// 🛡️ SECURITY LAYER 1: Helmet (Protects against well-known web vulnerabilities)
 app.use(helmet());
+
 const PORT = process.env.PORT || 5000;
 
 const allowedOrigins = (process.env.CLIENT_URL || 'https://taxmeld.vercel.app')
@@ -33,6 +37,7 @@ const allowedOrigins = (process.env.CLIENT_URL || 'https://taxmeld.vercel.app')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+// 🛡️ SECURITY LAYER 2: Strict CORS Protection
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -44,13 +49,14 @@ app.use(cors({
 }));
 
 app.use(express.json());
-// 🛡️ Custom NoSQL Injection Protection (Safe & Clean)
+
+// 🛡️ SECURITY LAYER 3: Custom NoSQL Injection Protection (Blocks database manipulation attacks)
 app.use((req, res, next) => {
   const sanitizeValue = (value: any): any => {
     if (value && typeof value === 'object') {
       for (const key of Object.keys(value)) {
         if (key.startsWith('$') || key.includes('.')) {
-          delete value[key]; // Dangerous symbols hata do
+          delete value[key]; // Removes malicious MongoDB operators
         } else {
           sanitizeValue(value[key]);
         }
@@ -65,11 +71,11 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 🛡️ STEP 1: RATE LIMITING (Brute Force Protection)
+// 🛡️ SECURITY LAYER 4: RATE LIMITING (DDoS & Brute-Force Protection)
 // ==========================================
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Ek IP ko 15 minute mein max 100 request allow karega
+  max: 100, // Max 100 requests per IP in 15 mins
   message: { 
     success: false,
     message: "Bohot saari requests aa rahi hain. Kripya 15 minute baad try karein." 
@@ -78,7 +84,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Ye limiter aapke sabhi /api routes par apply hoga
+// Applied globally to all /api routes
 app.use('/api', apiLimiter);
 // ==========================================
 
@@ -87,13 +93,14 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 connectDB();
 console.log(isEmailConfigured() ? 'Brevo email API configured.' : 'Brevo email API is not configured.');
 
-// 🚀 Aapke API Routes (Limiter in sab par automatic lag jayega)
+// 🚀 API Routes Registration
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/demo-leads', demoLeadRoutes);
+app.use('/api/payment', paymentRoutes); // 🔒 Webhook & Payment endpoints secured under /api/payment
 
-// Root route (Fixes UptimeRobot 404)
+// Root route
 app.get('/', (_req, res) => {
   res.status(200).send('TaxMeld Backend is Live & Running! 🚀');
 });
