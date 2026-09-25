@@ -5,7 +5,6 @@ import { CheckCircle, ShieldCheck, Zap, Mail, MessageSquare, Users } from 'lucid
 
 const Pricing: React.FC = () => {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
-  const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
 
   // Fetch profile to check real-time subscription status
@@ -26,8 +25,6 @@ const Pricing: React.FC = () => {
         }
       } catch (err) {
         console.error('Error fetching profile status...', err);
-      } finally {
-        setLoading(false);
       }
     };
 
