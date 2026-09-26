@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import Pricing from './pages/Pricing';
+import Payment from './pages/Payment';
 import ClientDetail from './pages/ClientDetail';
 
 export default function App() {
@@ -148,6 +149,7 @@ export default function App() {
             <Route path="/register" element={<Register onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/forgot-password" element={<ForgotPassword onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/payment/:plan" element={<Payment />} />
             <Route path="/track/:token" element={<ClientTracker />} />
             <Route path="/demo" element={<DemoEmail onStart={() => setIsDemoMode(true)} />} />
             <Route path="/" element={isAuthenticated ? <Dashboard /> : isDemoMode ? <Dashboard isDemo onDemoLimit={() => setShowDemoUpgrade(true)} /> : <LandingPage />} />

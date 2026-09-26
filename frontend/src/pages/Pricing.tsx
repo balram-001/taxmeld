@@ -47,13 +47,6 @@ const Pricing: React.FC = () => {
     return () => clearInterval(interval);
   }, [navigate]);
 
-  // UPI configuration
-  const upiId = "7999422714-m7e1@axl";
-  const amount299 = "299";
-  const amount399 = "399";
-  const payeeName = "TaxMeld";
-  const upiDeepLink299 = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount299}&cu=INR`;
-  const upiDeepLink399 = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount399}&cu=INR`;
   // Older paid accounts did not store planType. They are treated as Starter
   // accounts so an already-paid CA never sees another ₹299 payment request.
   const starterPlanActive = subscriptionStatus === 'active' && planType !== 'professional_399';
@@ -133,21 +126,13 @@ const Pricing: React.FC = () => {
                 <p className="mt-1 text-[11px] text-emerald-700">Payment received. No further action is needed right now.</p>
               </div>
             ) : (
-            <div className="flex flex-col items-center">
-              <img 
-                src="/qrcode.png" 
-                alt="UPI QR Code for ₹299" 
-                className="w-36 h-36 object-contain border border-slate-200 rounded-xl p-1 bg-white shadow-sm mb-3" 
-              />
-              <p className="text-[11px] font-semibold text-slate-600 mb-3">UPI ID: {upiId}</p>
-              
-              <a 
-                href={upiDeepLink299}
-                className="w-full bg-emerald-600 text-white text-center py-3 px-4 rounded-xl font-semibold text-xs hover:bg-emerald-700 shadow-md transition flex items-center justify-center gap-2"
+              <button
+                type="button"
+                onClick={() => navigate('/payment/starter')}
+                className="w-full rounded-full bg-slate-900 px-4 py-3.5 text-sm font-extrabold text-white shadow-md transition hover:bg-slate-800 active:scale-[0.99] cursor-pointer"
               >
-                Pay ₹299 via Any UPI App
-              </a>
-            </div>
+                Start with ₹299 Plan
+              </button>
             )}
           </div>
         </div>
@@ -209,20 +194,13 @@ const Pricing: React.FC = () => {
                 <p className="mt-1 text-[11px] text-emerald-700">5 staff member seats are included. Extra seats are ₹99/member/month.</p>
               </div>
             ) : (
-            <div className="flex flex-col items-center">
-              <img
-                src="/qrcode.png"
-                alt="UPI QR Code for ₹399"
-                className="w-36 h-36 object-contain border border-slate-200 rounded-xl p-1 bg-white shadow-sm mb-3"
-              />
-              <p className="text-[11px] font-semibold text-slate-600 mb-3">UPI ID: {upiId}</p>
-              <a
-                href={upiDeepLink399}
-                className="w-full bg-slate-900 text-white text-center py-3 px-4 rounded-xl font-semibold text-xs hover:bg-slate-800 shadow-sm transition flex items-center justify-center gap-2"
+              <button
+                type="button"
+                onClick={() => navigate('/payment/professional')}
+                className="w-full rounded-full bg-slate-900 px-4 py-3.5 text-sm font-extrabold text-white shadow-md transition hover:bg-slate-800 active:scale-[0.99] cursor-pointer"
               >
-                Pay ₹399 via Any UPI App
-              </a>
-            </div>
+                Get CA Professional Plan
+              </button>
             )}
           </div>
         </div>
