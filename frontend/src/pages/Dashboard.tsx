@@ -634,7 +634,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         </table>
       </div>
 
-      {/* Clean Mobile View Card (Only Name, PAN, Mobile + Click to open Client Workflow Page) */}
+      {/* Mobile client cards open the dedicated ClientDetail workflow screen. */}
       <div className="md:hidden space-y-3">
         {filteredClients.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-xl p-7 text-center text-sm text-slate-500">
@@ -642,10 +642,11 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
           </div>
         ) : (
           filteredClients.map((client) => (
-            <div 
-              key={client._id} 
+            <button
+              type="button"
+              key={client._id}
               onClick={() => navigate(`/client/${client._id}`)}
-              className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm cursor-pointer hover:border-emerald-500 transition space-y-2"
+              className="w-full text-left bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-2 hover:border-emerald-500 active:bg-emerald-50 transition cursor-pointer"
             >
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-900 text-sm truncate">{client.name}</h3>
@@ -655,9 +656,9 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
               </div>
               <div className="text-xs text-slate-600 flex items-center justify-between pt-1">
                 <span>📞 {client.phone || client.whatsappNumber || 'No phone number'}</span>
-                <span className="text-[11px] font-semibold text-indigo-600">Open Workflow →</span>
+                <span className="text-[11px] font-semibold text-indigo-600">Open Client →</span>
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>
