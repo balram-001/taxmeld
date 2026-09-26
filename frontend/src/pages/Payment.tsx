@@ -56,6 +56,7 @@ const Payment: React.FC = () => {
   }, [navigate]);
 
   const selectedPlanAlreadyActive = active && activePlan === selectedPlan.key;
+  const currentPlanName = activePlan === 'professional_399' ? '₹399 CA Professional Plan' : '₹299 Starter CA Plan';
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-8 sm:py-12">
@@ -86,8 +87,9 @@ const Payment: React.FC = () => {
             ) : active ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
                 <ShieldCheck size={34} className="mx-auto text-amber-600" />
-                <h2 className="mt-3 text-lg font-extrabold text-amber-900">You already have an active plan</h2>
-                <p className="mt-2 text-xs leading-5 text-amber-800">Your current subscription is active. Contact support before changing plans.</p>
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700">Your current subscription</p>
+                <h2 className="mt-2 text-lg font-extrabold text-amber-900">{currentPlanName} is active</h2>
+                <p className="mt-2 text-xs leading-5 text-amber-800">You have not paid for the {selectedPlan.name} shown above. Contact support only if you want to switch plans.</p>
                 <button onClick={() => navigate('/pricing')} className="mt-5 w-full rounded-full border border-amber-300 bg-white py-3 text-sm font-bold text-amber-900 cursor-pointer">Back to Plans</button>
               </div>
             ) : (
