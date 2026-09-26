@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import Pricing from './pages/Pricing';
+import ClientDetail from './pages/ClientDetail';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
@@ -150,6 +151,7 @@ export default function App() {
             <Route path="/track/:token" element={<ClientTracker />} />
             <Route path="/demo" element={<DemoEmail onStart={() => setIsDemoMode(true)} />} />
             <Route path="/" element={isAuthenticated ? <Dashboard /> : isDemoMode ? <Dashboard isDemo onDemoLimit={() => setShowDemoUpgrade(true)} /> : <LandingPage />} />
+            <Route path="/client/:id" element={<ClientDetail />} />
           </Routes>
         </main>
       </div>

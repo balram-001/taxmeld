@@ -17,7 +17,7 @@ const AVAILABLE_SERVICES = [
 ];
 
 export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: boolean; onDemoLimit?: () => void }) {
-  const navigate = useNavigate(); // ✅ Added for routing to Pricing page
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const caName = (() => {
     try {
@@ -418,7 +418,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6">
-      {/* 14-Day Free Trial Live Countdown Banner */}
       {userData && userData.subscriptionStatus === 'trial' && (
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -431,7 +430,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
             </div>
           </div>
           <button
-            onClick={() => navigate('/pricing')} // ✅ Redirects to Pricing page
+            onClick={() => navigate('/pricing')}
             className="px-4 py-2 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
           >
             View Plans
@@ -439,7 +438,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         </div>
       )}
 
-      {/* Subscription / Upgrade Modal */}
       {showUpgradeModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white rounded-t-[28px] sm:rounded-3xl max-w-md w-full max-h-[92dvh] overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-5 text-center border border-slate-200 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -489,7 +487,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
               <button
                 onClick={() => {
                   setShowUpgradeModal(false);
-                  navigate('/pricing'); // ✅ Redirects directly to Pricing/QR payment page
+                  navigate('/pricing');
                 }}
                 className="w-full min-h-12 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-sm font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-2"
               >
@@ -542,6 +540,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         />
       </div>
 
+      {/* Desktop Table View */}
       <div className="hidden md:block bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -635,6 +634,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         </table>
       </div>
 
+      {/* Clean Mobile View Card (Only Name, PAN, Mobile + Click to open Client Workflow Page) */}
       <div className="md:hidden space-y-3">
         {filteredClients.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-xl p-7 text-center text-sm text-slate-500">
@@ -642,30 +642,27 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
           </div>
         ) : (
           filteredClients.map((client) => (
-            <div key={client._id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-slate-900 truncate">{client.name}</h3>
-                  <p className="mt-0.5 text-xs text-slate-500">{client.phone || client.whatsappNumber || client.email || 'No contact details'}</p>
-                </div>
-                <span className="font-mono text-[11px] font-bold text-emerald-700">{client.panNumber}</span>
+            <div 
+              key={client._id} 
+              onClick={() => navigate(`/client/${client._id}`)}
+              className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm cursor-pointer hover:border-emerald-500 transition space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-slate-900 text-sm truncate">{client.name}</h3>
+                <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200">
+                  {client.panNumber}
+                </span>
               </div>
-              <div className="flex flex-wrap gap-1">
-                {(client.serviceType ? client.serviceType.split(', ').filter(Boolean) : []).map((service: string) => (
-                  <span key={service} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600">{service}</span>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
-                <button onClick={() => openWorkflowModal(client)} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">Workflow</button>
-                <button onClick={() => openDrawerPreview(client)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white">View Client</button>
-                <button onClick={() => sendWhatsAppMessage(client)} className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">WhatsApp</button>
-                <Link to={`/track/${client.trackingToken}`} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-semibold text-slate-700">Client Portal</Link>
+              <div className="text-xs text-slate-600 flex items-center justify-between pt-1">
+                <span>📞 {client.phone || client.whatsappNumber || 'No phone number'}</span>
+                <span className="text-[11px] font-semibold text-indigo-600">Open Workflow →</span>
               </div>
             </div>
           ))
         )}
       </div>
 
+      {/* Client Delete Confirmation Modal */}
       {clientToDelete && (
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
@@ -700,6 +697,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         </div>
       )}
 
+      {/* Workflow Modal */}
       {activeClient && (
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto space-y-6">
@@ -837,6 +835,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         </div>
       )}
 
+      {/* Drawer Preview */}
       {drawerClient && (
         <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-xs flex items-end md:items-stretch justify-end">
           <div className="w-full md:max-w-lg bg-white max-h-[85vh] md:max-h-full h-full rounded-t-2xl md:rounded-none shadow-2xl border-t md:border-t-0 md:border-l border-slate-200 flex flex-col">
@@ -925,6 +924,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         </div>
       )}
 
+      {/* Document Preview Modal */}
       {previewDocUrl && (() => {
         const rawName = previewDocName || previewDocUrl;
         const ext = rawName.split('.').pop()?.toLowerCase() || '';
@@ -994,6 +994,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         );
       })()}
 
+      {/* Add Client Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
