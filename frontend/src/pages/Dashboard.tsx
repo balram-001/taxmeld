@@ -6,7 +6,7 @@ import { useToast } from '../toast';
 import { 
   Shield, Plus, Search, ExternalLink, X, 
   MessageCircle, Copy, Check, Loader2, FileText, SlidersHorizontal,
-  Eye, Download, Trash2, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles, ArrowLeft
+  Eye, Download, Trash2, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles, ArrowLeft, Users
 } from 'lucide-react';
 
 const AVAILABLE_SERVICES = [
@@ -506,6 +506,11 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">CA Practice Dashboard</h1>
           <p className="text-slate-500 text-xs sm:text-sm">Manage multi-service clients, custom requirements & final deliveries</p>
+          <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800">
+            <Users size={14} className="text-emerald-600" />
+            <span>{clients.length} {clients.length === 1 ? 'Client' : 'Clients'} Added</span>
+            {userData?.subscriptionStatus === 'trial' && <span className="border-l border-emerald-200 pl-2 text-[10px] font-semibold text-emerald-700">{clients.length}/20 trial limit used</span>}
+          </div>
         </div>
         <button
           onClick={() => {
