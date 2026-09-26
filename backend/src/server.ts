@@ -4,7 +4,6 @@ dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
 
 import express from 'express';
 import cors from 'cors';
-import mongoSanitize from 'express-mongo-sanitize';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -15,7 +14,7 @@ import authRoutes from './routes/authRoutes';
 import clientRoutes from './routes/clientRoutes';
 import taskRoutes from './routes/taskRoutes';
 import demoLeadRoutes from './routes/demoLeadRoutes';
-import paymentRoutes from './routes/paymentRoutes'; // ✅ Payment & Webhook Routes Added
+import paymentRoutes from './routes/paymentRoutes';
 import rateLimit from 'express-rate-limit';
 
 dotenv.config();
@@ -27,10 +26,8 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 app.set('trust proxy', 1);
 
-// 🛡️ SECURITY LAYER 1: Helmet (Protects against well-known web vulnerabilities)
+// 🛡️ SECURITY LAYER 1: Helmet
 app.use(helmet());
-
-const PORT = process.env.PORT || 5000;
 
 const allowedOrigins = (process.env.CLIENT_URL || 'https://taxmeld.vercel.app')
   .split(',')
@@ -50,13 +47,13 @@ app.use(cors({
 
 app.use(express.json());
 
-// 🛡️ SECURITY LAYER 3: Custom NoSQL Injection Protection (Blocks database manipulation attacks)
+// 🛡️ SECURITY LAYER 3: Custom NoSQL Injection Protection
 app.use((req, res, next) => {
   const sanitizeValue = (value: any): any => {
     if (value && typeof value === 'object') {
       for (const key of Object.keys(value)) {
         if (key.startsWith('$') || key.includes('.')) {
-          delete value[key]; // Removes malicious MongoDB operators
+          delete value[key];
         } else {
           sanitizeValue(value[key]);
         }
@@ -71,11 +68,11 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 🛡️ SECURITY LAYER 4: RATE LIMITING (DDoS & Brute-Force Protection)
+// 🛡️ SECURITY LAYER 4: RATE LIMITING
 // ==========================================
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Max 100 requests per IP in 15 mins
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: { 
     success: false,
     message: "Bohot saari requests aa rahi hain. Kripya 15 minute baad try karein." 
@@ -84,13 +81,21 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Applied globally to all /api routes
 app.use('/api', apiLimiter);
 // ==========================================
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-connectDB();
+// Middleware to ensure DB connection on Vercel Serverless
+app.use(async (_req, _res, next) => {
+  try {
+    await connectDB();
+  } catch (error) {
+    console.error('Database connection error in middleware:', error);
+  }
+  next();
+});
+
 console.log(isEmailConfigured() ? 'Brevo email API configured.' : 'Brevo email API is not configured.');
 
 // 🚀 API Routes Registration
@@ -98,11 +103,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/demo-leads', demoLeadRoutes);
-app.use('/api/payment', paymentRoutes); // 🔒 Webhook & Payment endpoints secured under /api/payment
+app.use('/api/payment', paymentRoutes);
 
 // Root route
 app.get('/', (_req, res) => {
-  res.status(200).send('TaxMeld Backend is Live & Running! 🚀');
+  res.status(200).send('TaxMeld Backend is Live & Running on Vercel! 🚀');
 });
 
 // Health check route
@@ -110,6 +115,6 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'OK', message: 'TaxMeld Backend is running!' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 TaxMeld Server running on port ${PORT}`);
-});
+// ❌ app.listen() is removed for Vercel Serverless architecture
+// ✅ Exporting the Express app for Vercel
+export default app;
