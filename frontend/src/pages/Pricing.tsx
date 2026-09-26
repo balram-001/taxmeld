@@ -17,7 +17,7 @@ const Pricing: React.FC = () => {
 
     const fetchStatus = async () => {
       try {
-        const res = await axios.get('https://taxmeld-backend.onrender.com/api/auth/profile', {
+        const res = await axios.get('https://taxmeld-backend.vercel.app/api/auth/profile', {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.subscriptionStatus) {
@@ -33,7 +33,7 @@ const Pricing: React.FC = () => {
     // Polling trigger: Check if payment is verified by MacroDroid webhook
     const interval = setInterval(async () => {
       try {
-        const res = await axios.get('https://taxmeld-backend.onrender.com/api/auth/profile', {
+        const res = await axios.get('https://taxmeld-backend.vercel.app/api/auth/profile', {
           headers: { Authorization: `Bearer ${token}` }
         });
 

@@ -33,7 +33,7 @@ export default function App() {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        await axios.delete('https://taxmeld-backend.onrender.com/api/auth/account', {
+        await axios.delete('https://taxmeld-backend.vercel.app/api/auth/account', {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
