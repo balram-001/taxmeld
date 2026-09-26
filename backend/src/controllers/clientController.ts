@@ -113,6 +113,36 @@ export const getClients = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+// Get one client for the CA's mobile workflow page. The userId check ensures
+// that a signed-in CA can only open their own client record.
+export const getClientById = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const clientId = req.params.id;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized access' });
+      return;
+    }
+
+    const client = await Client.findOne({ _id: clientId, userId });
+    if (!client) {
+      res.status(404).json({ message: 'Client not found or unauthorized' });
+      return;
+    }
+
+    res.status(200).json(client);
+  } catch (error: any) {
+    // Invalid ObjectIds should look like a normal unavailable client, not a
+    // server error on the mobile workflow screen.
+    if (error?.name === 'CastError') {
+      res.status(404).json({ message: 'Client not found or unauthorized' });
+      return;
+    }
+    res.status(500).json({ message: 'Failed to fetch client details', error: error.message });
+  }
+};
+
 export const deleteClient = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const clientId = req.params.id;
