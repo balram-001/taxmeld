@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, CreditCard, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle, CreditCard, Loader2 } from 'lucide-react';
 
 const API_URL = 'https://taxmeld-backend.vercel.app/api';
 
@@ -9,7 +9,6 @@ const Payment: React.FC = () => {
   const { plan } = useParams<{ plan: string }>();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
-  const [active, setActive] = useState(false);
   const [activePlan, setActivePlan] = useState('');
 
   const selectedPlan = useMemo(() => plan === 'professional' ? {
@@ -41,8 +40,7 @@ const Payment: React.FC = () => {
         const response = await axios.get(`${API_URL}/auth/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setActive(response.data.subscriptionStatus === 'active');
-        setActivePlan(response.data.planType || '');
+        setActivePlan(response.data.subscriptionStatus === 'active' ? response.data.planType || '' : '');
       } catch (error) {
         console.error('Could not check subscription:', error);
       } finally {
@@ -55,8 +53,7 @@ const Payment: React.FC = () => {
     return () => window.clearInterval(interval);
   }, [navigate]);
 
-  const selectedPlanAlreadyActive = active && activePlan === selectedPlan.key;
-  const currentPlanName = activePlan === 'professional_399' ? '₹399 CA Professional Plan' : '₹299 Starter CA Plan';
+  const selectedPlanAlreadyActive = activePlan === selectedPlan.key;
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-8 sm:py-12">
@@ -83,14 +80,6 @@ const Payment: React.FC = () => {
                 <h2 className="mt-3 text-lg font-extrabold text-emerald-900">This plan is already active</h2>
                 <p className="mt-2 text-xs leading-5 text-emerald-800">Your payment has been verified. No further payment is required.</p>
                 <button onClick={() => navigate('/')} className="mt-5 w-full rounded-full bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 cursor-pointer">Go to Dashboard</button>
-              </div>
-            ) : active ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
-                <ShieldCheck size={34} className="mx-auto text-amber-600" />
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700">Your current subscription</p>
-                <h2 className="mt-2 text-lg font-extrabold text-amber-900">{currentPlanName} is active</h2>
-                <p className="mt-2 text-xs leading-5 text-amber-800">You have not paid for the {selectedPlan.name} shown above. Contact support only if you want to switch plans.</p>
-                <button onClick={() => navigate('/pricing')} className="mt-5 w-full rounded-full border border-amber-300 bg-white py-3 text-sm font-bold text-amber-900 cursor-pointer">Back to Plans</button>
               </div>
             ) : (
               <>
