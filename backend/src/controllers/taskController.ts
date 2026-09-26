@@ -315,7 +315,7 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
     // Auto-Send Final Acknowledgement Email to Client
     if (client.email) {
       const frontendBaseUrl = process.env.CLIENT_BASE_URL || 'https://taxmeld.vercel.app';
-      const backendBaseUrl = process.env.PUBLIC_BACKEND_URL || 'https://taxfollow-backend.onrender.com';
+      const backendBaseUrl = process.env.PUBLIC_BACKEND_URL || 'https://taxmeld-backend.vercel.app';
       const trackingUrl = `${frontendBaseUrl}/track/${client.trackingToken}`;
       const downloadUrl = `${backendBaseUrl}/api/tasks/download/${client.trackingToken}/${ackTask._id}/0`;
       // Email attachments can take several seconds to reach Brevo. The CA
