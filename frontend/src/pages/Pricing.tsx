@@ -51,8 +51,10 @@ const Pricing: React.FC = () => {
   // UPI configuration
   const upiId = "7999422714-m7e1@axl";
   const amount299 = "299";
+  const amount399 = "399";
   const payeeName = "TaxMeld";
   const upiDeepLink299 = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount299}&cu=INR`;
+  const upiDeepLink399 = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount399}&cu=INR`;
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -75,16 +77,12 @@ const Pricing: React.FC = () => {
       {/* Side-by-Side Pricing Cards */}
       <div className="mt-12 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
         
-        {/* Card 1: Founding CA Plan (₹299) */}
+        {/* Card 1: Starter CA Plan (₹299) */}
         <div className={`bg-white rounded-2xl shadow-xl border ${subscriptionStatus === 'active' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-indigo-200 ring-2 ring-indigo-500/10'} p-8 flex flex-col justify-between relative overflow-hidden transition hover:shadow-2xl`}>
-          <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
-            First 10 CAs Offer
-          </div>
-
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">
-                Founding CA Plan
+                Starter CA Plan
               </span>
               {subscriptionStatus === 'active' && (
                 <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
@@ -97,7 +95,7 @@ const Pricing: React.FC = () => {
               <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">₹299</span>
               <span className="ml-1 text-sm font-medium text-slate-500">/ month</span>
             </div>
-            <p className="mt-2 text-xs text-slate-500">Special locked-in pricing for early adopting Chartered Accountants.</p>
+            <p className="mt-2 text-xs text-slate-500">Essential practice automation for independent Chartered Accountants.</p>
 
             {/* Features List */}
             <ul className="mt-6 space-y-3.5 text-sm text-slate-700">
@@ -143,11 +141,11 @@ const Pricing: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 2: Standard Professional Plan (₹399) */}
+        {/* Card 2: CA Professional Plan (₹399) */}
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 flex flex-col justify-between relative transition hover:shadow-xl">
           <div>
             <span className="bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1 rounded-full">
-              Standard Professional Plan
+              CA Professional Plan
             </span>
 
             <div className="mt-4 flex items-baseline">
@@ -182,12 +180,15 @@ const Pricing: React.FC = () => {
           </div>
 
           <div className="mt-8 pt-6 border-t border-slate-100">
-            <button
-              onClick={() => alert('Standard plan will be available for selection upon renewal.')}
-              className="w-full bg-slate-900 text-white text-center py-3 px-4 rounded-xl font-semibold text-xs hover:bg-slate-800 shadow-sm transition"
-            >
-              Standard Plan (Next Renewal)
-            </button>
+            <div className="flex flex-col items-center">
+              <p className="text-[11px] font-semibold text-slate-600 mb-3">UPI ID: {upiId}</p>
+              <a
+                href={upiDeepLink399}
+                className="w-full bg-slate-900 text-white text-center py-3 px-4 rounded-xl font-semibold text-xs hover:bg-slate-800 shadow-sm transition flex items-center justify-center gap-2"
+              >
+                Pay ₹399 via Any UPI App
+              </a>
+            </div>
           </div>
         </div>
 

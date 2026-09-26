@@ -21,7 +21,9 @@ export const handleMacrodroidWebhook = async (req: Request, res: Response): Prom
     const lowerSms = smsText.toLowerCase();
 
     const isCredited = lowerSms.includes('credited') || lowerSms.includes('received');
-    const containsAmount = lowerSms.includes('399') || lowerSms.includes('299'); 
+    const isStarterPayment = lowerSms.includes('299');
+    const isProfessionalPayment = lowerSms.includes('399');
+    const containsAmount = isStarterPayment || isProfessionalPayment;
 
     if (isCredited && containsAmount) {
       const user = await User.findOne({ email: userEmail.toLowerCase() });
@@ -32,6 +34,7 @@ export const handleMacrodroidWebhook = async (req: Request, res: Response): Prom
       }
 
       user.subscriptionStatus = 'active';
+      user.planType = isProfessionalPayment ? 'professional_399' : 'starter_299';
       user.subscriptionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 Days active
       await user.save();
 

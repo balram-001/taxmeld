@@ -40,7 +40,7 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
 
     if (user.subscriptionStatus === 'expired') {
       res.status(403).json({ 
-        message: 'Your 14-day free trial has ended. Please upgrade to the ₹299/mo plan to add more clients.' 
+        message: 'Your 14-day free trial has ended. Please choose a paid plan to add more clients.'
       });
       return;
     }

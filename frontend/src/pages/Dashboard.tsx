@@ -398,9 +398,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     c.panNumber?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const monthlyPlanPrice = userData?.monthlyPlanPrice === 399 ? 399 : 299;
-  const hasFoundingPrice = monthlyPlanPrice === 299;
-
   const ackTask = clientTasks.find(
     (t) => t.title === 'Acknowledgement Generated' || t.documentType === 'ITR Acknowledgement'
   );
@@ -437,7 +434,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
             onClick={() => navigate('/pricing')} // ✅ Redirects to Pricing page
             className="px-4 py-2 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
           >
-            Upgrade Plan ₹{monthlyPlanPrice}/mo
+            View Plans
           </button>
         </div>
       )}
@@ -453,7 +450,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
               >
                 <ArrowLeft size={16} /> Back to Dashboard
               </button>
-              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-amber-800">Limited launch offer</span>
             </div>
 
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 text-amber-700 flex items-center justify-center mx-auto border border-amber-200 shadow-sm">
@@ -471,15 +467,15 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
             <div className="bg-gradient-to-br from-slate-50 to-emerald-50/50 border border-emerald-100 rounded-2xl p-4 text-left space-y-3">
               <div className="flex justify-between items-start gap-3">
                 <div>
-                  <span className="text-sm font-extrabold text-slate-800">CA Professional Plan</span>
+                  <span className="text-sm font-extrabold text-slate-800">TaxMeld CA Plans</span>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    {hasFoundingPrice ? 'Your founding price is locked for your firm.' : 'Standard price — founding seats are fully claimed.'}
+                    Choose the plan that fits your firm. Both plans include unlimited clients.
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="text-xl font-extrabold text-emerald-600">₹{monthlyPlanPrice}</span>
+                  <span className="text-xl font-extrabold text-emerald-600">₹299</span>
                   <span className="text-[10px] text-slate-500 font-medium"> / month</span>
-                  {hasFoundingPrice && <p className="text-[9px] font-bold text-amber-700">First 10 CA firms</p>}
+                  <p className="text-[9px] font-bold text-slate-500">or ₹399 / month</p>
                 </div>
               </div>
               <ul className="space-y-2 text-xs text-slate-600 pt-1">
@@ -497,7 +493,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
                 }}
                 className="w-full min-h-12 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-sm font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-2"
               >
-                <Sparkles size={16} /> Upgrade to ₹{monthlyPlanPrice}/mo
+                <Sparkles size={16} /> Choose a Plan
               </button>
               <button onClick={returnToDashboard} className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer">
                 Continue on Dashboard
