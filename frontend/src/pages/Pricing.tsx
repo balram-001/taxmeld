@@ -5,6 +5,7 @@ import { CheckCircle, ShieldCheck, Zap, Mail, MessageSquare, Users } from 'lucid
 
 const Pricing: React.FC = () => {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
+  const [planType, setPlanType] = useState<string>('free_trial');
   const navigate = useNavigate();
 
   // Fetch profile to check real-time subscription status
@@ -20,9 +21,8 @@ const Pricing: React.FC = () => {
         const res = await axios.get('https://taxmeld-backend.vercel.app/api/auth/profile', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (res.data.subscriptionStatus) {
-          setSubscriptionStatus(res.data.subscriptionStatus);
-        }
+        setSubscriptionStatus(res.data.subscriptionStatus || 'trial');
+        setPlanType(res.data.planType || 'free_trial');
       } catch (err) {
         console.error('Error fetching profile status...', err);
       }
@@ -37,9 +37,8 @@ const Pricing: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
 
-        if (res.data.subscriptionStatus === 'active') {
-          setSubscriptionStatus('active');
-        }
+        setSubscriptionStatus(res.data.subscriptionStatus || 'trial');
+        setPlanType(res.data.planType || 'free_trial');
       } catch (err) {
         console.error('Polling error...', err);
       }
@@ -55,6 +54,10 @@ const Pricing: React.FC = () => {
   const payeeName = "TaxMeld";
   const upiDeepLink299 = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount299}&cu=INR`;
   const upiDeepLink399 = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount399}&cu=INR`;
+  // Older paid accounts did not store planType. They are treated as Starter
+  // accounts so an already-paid CA never sees another ₹299 payment request.
+  const starterPlanActive = subscriptionStatus === 'active' && planType !== 'professional_399';
+  const professionalPlanActive = subscriptionStatus === 'active' && planType === 'professional_399';
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -69,7 +72,7 @@ const Pricing: React.FC = () => {
         {subscriptionStatus === 'active' && (
           <div className="mt-6 inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-emerald-700 text-sm font-semibold shadow-sm animate-bounce">
             <CheckCircle size={18} className="text-emerald-600" />
-            Your TaxMeld Subscription is Active & Verified! 🎉
+            Your {professionalPlanActive ? '₹399 CA Professional' : '₹299 Starter CA'} Plan is Active & Verified! 🎉
           </div>
         )}
       </div>
@@ -78,13 +81,13 @@ const Pricing: React.FC = () => {
       <div className="mt-12 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
         
         {/* Card 1: Starter CA Plan (₹299) */}
-        <div className={`bg-white rounded-2xl shadow-xl border ${subscriptionStatus === 'active' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-indigo-200 ring-2 ring-indigo-500/10'} p-8 flex flex-col justify-between relative overflow-hidden transition hover:shadow-2xl`}>
+        <div className={`bg-white rounded-2xl shadow-xl border ${starterPlanActive ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-indigo-200 ring-2 ring-indigo-500/10'} p-8 flex flex-col justify-between relative overflow-hidden transition hover:shadow-2xl`}>
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">
                 Starter CA Plan
               </span>
-              {subscriptionStatus === 'active' && (
+              {starterPlanActive && (
                 <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <CheckCircle size={12} /> Active Plan
                 </span>
@@ -123,6 +126,13 @@ const Pricing: React.FC = () => {
           </div>
 
           <div className="mt-8 pt-6 border-t border-slate-100">
+            {starterPlanActive ? (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-center">
+                <CheckCircle size={24} className="mx-auto text-emerald-600" />
+                <p className="mt-2 text-sm font-bold text-emerald-800">Your ₹299 Starter Plan is active</p>
+                <p className="mt-1 text-[11px] text-emerald-700">Payment received. No further action is needed right now.</p>
+              </div>
+            ) : (
             <div className="flex flex-col items-center">
               <img 
                 src="/qrcode.png" 
@@ -138,15 +148,23 @@ const Pricing: React.FC = () => {
                 Pay ₹299 via Any UPI App
               </a>
             </div>
+            )}
           </div>
         </div>
 
         {/* Card 2: CA Professional Plan (₹399) */}
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 flex flex-col justify-between relative transition hover:shadow-xl">
+        <div className={`bg-white rounded-2xl shadow-lg border p-8 flex flex-col justify-between relative transition hover:shadow-xl ${professionalPlanActive ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200'}`}>
           <div>
-            <span className="bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1 rounded-full">
-              CA Professional Plan
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1 rounded-full">
+                CA Professional Plan
+              </span>
+              {professionalPlanActive && (
+                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle size={12} /> Active Plan
+                </span>
+              )}
+            </div>
 
             <div className="mt-4 flex items-baseline">
               <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">₹399</span>
@@ -170,7 +188,11 @@ const Pricing: React.FC = () => {
               </li>
               <li className="flex items-center gap-3">
                 <ShieldCheck size={16} className="text-indigo-600 shrink-0" />
-                <span>Advanced Multi-User Firm Workflow Access</span>
+                <span><strong>5 Staff Members</strong> included in the plan</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <Users size={16} className="text-violet-600 shrink-0" />
+                <span>Additional staff at <strong>₹99 per member / month</strong></span>
               </li>
               <li className="flex items-center gap-3">
                 <Zap size={16} className="text-amber-500 shrink-0" />
@@ -180,7 +202,19 @@ const Pricing: React.FC = () => {
           </div>
 
           <div className="mt-8 pt-6 border-t border-slate-100">
+            {professionalPlanActive ? (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-center">
+                <CheckCircle size={24} className="mx-auto text-emerald-600" />
+                <p className="mt-2 text-sm font-bold text-emerald-800">Your ₹399 Professional Plan is active</p>
+                <p className="mt-1 text-[11px] text-emerald-700">5 staff member seats are included. Extra seats are ₹99/member/month.</p>
+              </div>
+            ) : (
             <div className="flex flex-col items-center">
+              <img
+                src="/qrcode.png"
+                alt="UPI QR Code for ₹399"
+                className="w-36 h-36 object-contain border border-slate-200 rounded-xl p-1 bg-white shadow-sm mb-3"
+              />
               <p className="text-[11px] font-semibold text-slate-600 mb-3">UPI ID: {upiId}</p>
               <a
                 href={upiDeepLink399}
@@ -189,6 +223,7 @@ const Pricing: React.FC = () => {
                 Pay ₹399 via Any UPI App
               </a>
             </div>
+            )}
           </div>
         </div>
 
