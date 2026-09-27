@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LogOut, Trash2, CreditCard } from 'lucide-react';
+import { BellRing, LogOut, Trash2, CreditCard } from 'lucide-react';
 
 interface NavigationBarProps {
   isAuthenticated: boolean;
@@ -53,6 +53,13 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer transition"
                 >
                   <CreditCard size={14} className="text-indigo-500" /> Subscription & Pricing
+                </Link>
+                <Link
+                  to="/activity"
+                  onClick={() => setDropdownOpen(false)}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer transition"
+                >
+                  <BellRing size={14} className="text-amber-500" /> Notifications & Client Activity
                 </Link>
 
                 <button
