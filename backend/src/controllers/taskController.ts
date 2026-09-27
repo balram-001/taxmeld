@@ -7,6 +7,35 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import fs from 'fs';
 import path from 'path';
 import { sendFinalAckEmail } from '../utils/emailService';
+import cloudinary, { isCloudinaryConfigured } from '../config/cloudinary';
+
+type CloudFilePayload = { fileUrl: string; publicId: string; originalFileName: string; mimeType?: string };
+
+const readCloudFiles = (value: unknown): CloudFilePayload[] => Array.isArray(value)
+  ? value.filter((file: any) => file?.fileUrl && file?.publicId && file?.originalFileName)
+  : [];
+
+export const createClientUploadSignature = async (req: Request, res: Response): Promise<void> => {
+  const client = await Client.findOne({ trackingToken: req.params.token });
+  if (!client || !isCloudinaryConfigured) {
+    res.status(400).json({ message: 'Secure upload is temporarily unavailable.' });
+    return;
+  }
+  const timestamp = Math.floor(Date.now() / 1000);
+  const folder = `taxmeld/${client._id}/client`;
+  res.json({ cloudName: process.env.CLOUDINARY_CLOUD_NAME, apiKey: process.env.CLOUDINARY_API_KEY, timestamp, folder, signature: cloudinary.utils.api_sign_request({ folder, timestamp }, process.env.CLOUDINARY_API_SECRET!) });
+};
+
+export const createCAUploadSignature = async (req: AuthRequest, res: Response): Promise<void> => {
+  const client = await Client.findOne({ _id: req.params.clientId, userId: req.user?.id || req.user?._id });
+  if (!client || !isCloudinaryConfigured) {
+    res.status(400).json({ message: 'Secure upload is temporarily unavailable.' });
+    return;
+  }
+  const timestamp = Math.floor(Date.now() / 1000);
+  const folder = `taxmeld/${client._id}/final`;
+  res.json({ cloudName: process.env.CLOUDINARY_CLOUD_NAME, apiKey: process.env.CLOUDINARY_API_KEY, timestamp, folder, signature: cloudinary.utils.api_sign_request({ folder, timestamp }, process.env.CLOUDINARY_API_SECRET!) });
+};
 
 // Helper function: Recalculate Stage 1, 2 & 3 status based on standard + custom requirements
 const updateStage2Status = async (clientId: any, trackingToken: string) => {
@@ -156,7 +185,7 @@ export const uploadClientDocument = async (req: Request, res: Response): Promise
   try {
     const token = req.params.token as string;
     const serviceCategory = (req.body.serviceCategory as string) || 'General';
-    const files = req.files as Express.Multer.File[];
+    const files = readCloudFiles(req.body.files);
 
     if (!files || files.length === 0) {
       res.status(400).json({ error: 'No files uploaded' });
@@ -189,21 +218,14 @@ export const uploadClientDocument = async (req: Request, res: Response): Promise
     }
 
     const storedFiles = await Promise.all(
-      files.map((file) => StoredFile.create({
-        clientId: client._id,
-        taskId: docTask!._id,
-        originalFileName: file.originalname,
-        mimeType: file.mimetype || 'application/octet-stream',
-        size: file.size,
-        data: file.buffer,
-      }))
+      files.map(async (file) => file)
     );
 
     const newFilesList = storedFiles.map((storedFile) => ({
-      fileUrl: `/api/tasks/file/${token}/${docTask!._id}/${storedFile._id}`,
-      storageId: storedFile._id,
+      fileUrl: storedFile.fileUrl,
+      cloudinaryPublicId: storedFile.publicId,
       originalFileName: storedFile.originalFileName,
-      mimeType: storedFile.mimeType,
+      mimeType: storedFile.mimeType || 'application/octet-stream',
       uploadedAt: new Date(),
     }));
 

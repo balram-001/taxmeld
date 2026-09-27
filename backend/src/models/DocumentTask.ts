@@ -5,6 +5,7 @@ export interface IUploadedFile {
   originalFileName: string;
   uploadedAt: Date;
   storageId?: mongoose.Types.ObjectId;
+  cloudinaryPublicId?: string;
   mimeType?: string;
 }
 
@@ -46,6 +47,7 @@ const DocumentTaskSchema: Schema = new Schema(
         originalFileName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now },
         storageId: { type: Schema.Types.ObjectId, ref: 'StoredFile' },
+        cloudinaryPublicId: { type: String },
         mimeType: { type: String, default: 'application/octet-stream' },
       },
     ],
