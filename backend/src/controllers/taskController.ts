@@ -438,6 +438,11 @@ export const downloadClientFile = async (req: Request, res: Response): Promise<v
       return;
     }
 
+    if (file.fileUrl.startsWith('http')) {
+      res.redirect(file.fileUrl);
+      return;
+    }
+
     if (file.storageId) {
       const storedFile = await StoredFile.findById(file.storageId);
       if (!storedFile) {

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import API from '../api';
-import { BACKEND_URL } from '../config';
 import { useToast } from '../toast';
+import { resolveFileUrl, uploadFilesDirectly } from '../cloudinary';
 import {
   ArrowLeft, CheckCheck, Download, ExternalLink, Eye, FileText,
   Loader2, SlidersHorizontal, Upload,
@@ -89,14 +89,9 @@ const ClientDetail: React.FC = () => {
 
     uploadInFlight.current = true;
     setUploading(true);
-    const payload = new FormData();
-    finalFiles.forEach((file) => payload.append('files', file));
-    payload.append('mode', addingFiles ? 'append' : 'replace');
-
     try {
-      await API.post(`/tasks/ca-upload-ack/${client._id}`, payload, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const files = await uploadFilesDirectly(finalFiles, `/tasks/ca-upload-signature/${client._id}`);
+      await API.post(`/tasks/ca-upload-ack/${client._id}`, { mode: addingFiles ? 'append' : 'replace', files });
       setFinalFiles([]);
       setReplacing(false);
       setAddingFiles(false);
@@ -195,7 +190,7 @@ const ClientDetail: React.FC = () => {
               {finalDocuments.length > 0 && !replacing && !addingFiles ? (
                 <div className="space-y-2">
                   {finalDocuments.map((file: any, index: number) => (
-                    <a key={`${file.fileUrl}-${index}`} href={`${BACKEND_URL}${file.fileUrl}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-xl bg-white border border-emerald-100 p-3">
+                    <a key={`${file.fileUrl}-${index}`} href={resolveFileUrl(file.fileUrl)} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-xl bg-white border border-emerald-100 p-3">
                       <span className="min-w-0 flex items-center gap-2"><FileText size={18} className="text-emerald-600 shrink-0" /><span className="truncate text-xs font-bold text-slate-800">{file.originalFileName || 'Final document'}</span></span>
                       <Download size={16} className="text-emerald-700 shrink-0" />
                     </a>

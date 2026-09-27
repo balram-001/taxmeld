@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api';
+import { resolveFileUrl, uploadFilesDirectly } from '../cloudinary';
 import { BACKEND_URL } from '../config';
 import { useToast } from '../toast';
 import { 
@@ -54,17 +55,10 @@ export default function ClientTracker() {
   const handleMultipleUpload = async (category: string, filesList: FileList) => {
     if (!filesList || filesList.length === 0) return;
 
-    const formData = new FormData();
-    for (let i = 0; i < filesList.length; i++) {
-      formData.append('files', filesList[i]);
-    }
-    formData.append('serviceCategory', category);
-
     setUploadingStatus({ category, count: filesList.length });
     try {
-      await API.post(`/tasks/upload/${token}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const files = await uploadFilesDirectly(Array.from(filesList), `/tasks/upload-signature/${token}`);
+      await API.post(`/tasks/upload/${token}`, { serviceCategory: category, files });
       await fetchStatus();
     } catch (err: any) {
       showToast(err.response?.data?.error || 'Upload failed. Please try again.', 'error');
@@ -463,7 +457,7 @@ export default function ClientTracker() {
 
       {/* Document Viewer Modal */}
       {viewDocOpen && previewTargetDoc?.fileUrl && (() => {
-        const fileUrl = `${BACKEND_URL}${previewTargetDoc.fileUrl}`;
+        const fileUrl = resolveFileUrl(previewTargetDoc.fileUrl);
         const rawName = previewTargetDoc.originalFileName || previewTargetDoc.fileUrl;
         const ext = rawName.split('.').pop()?.toLowerCase() || '';
         const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext);
