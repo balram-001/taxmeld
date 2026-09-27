@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { X, LogOut, CheckCircle2, Trash2 } from 'lucide-react';
 import axios from 'axios';
@@ -14,6 +14,48 @@ import ForgotPassword from './pages/ForgotPassword';
 import Pricing from './pages/Pricing';
 import Payment from './pages/Payment';
 import ClientDetail from './pages/ClientDetail';
+import API from './api';
+import { useToast } from './toast';
+
+function ClientUploadNotifications({ enabled }: { enabled: boolean }) {
+  const { showToast } = useToast();
+  const checkingRef = useRef(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const checkForNewUploads = async () => {
+      if (checkingRef.current) return;
+      checkingRef.current = true;
+      try {
+        const response = await API.get('/clients');
+        const clients = response.data || [];
+        const seenKey = 'taxmeld_last_seen_client_upload';
+        const lastSeen = Number(localStorage.getItem(seenKey) || 0);
+        const newUploads = clients.filter((client: any) => new Date(client.lastClientUploadAt || 0).getTime() > lastSeen);
+
+        if (newUploads.length > 0) {
+          newUploads.forEach((client: any) => {
+            const clientNumber = clients.findIndex((item: any) => item._id === client._id) + 1;
+            showToast(`Client #${clientNumber} — ${client.name} (${client.panNumber}) has uploaded documents.`, 'info');
+          });
+          const newestUpload = Math.max(...newUploads.map((client: any) => new Date(client.lastClientUploadAt).getTime()));
+          localStorage.setItem(seenKey, String(newestUpload));
+        }
+      } catch {
+        // A background notification check must never interrupt the CA's work.
+      } finally {
+        checkingRef.current = false;
+      }
+    };
+
+    void checkForNewUploads();
+    const timer = window.setInterval(checkForNewUploads, 25000);
+    return () => window.clearInterval(timer);
+  }, [enabled, showToast]);
+
+  return null;
+}
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
@@ -60,6 +102,7 @@ export default function App() {
           onLogoutRequest={() => setShowLogoutConfirm(true)} 
           onDeleteAccount={() => setShowDeleteConfirm(true)}
         />
+        <ClientUploadNotifications enabled={isAuthenticated && !isDemoMode} />
 
         {/* Logout Confirmation Modal */}
         {showLogoutConfirm && (
