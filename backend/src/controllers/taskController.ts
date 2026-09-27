@@ -292,7 +292,7 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
   try {
     const { clientId } = req.params;
     const appendFiles = req.body.mode === 'append';
-    const files = (req.files as Express.Multer.File[] | undefined) || [];
+    const files = readCloudFiles(req.body.files);
 
     if (files.length === 0) {
       res.status(400).json({ message: 'Select at least one final document.' });
@@ -342,22 +342,11 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
       ackTask.finalDeliveryVersion = (ackTask.finalDeliveryVersion || 0) + 1;
     }
 
-    const storedFiles = await Promise.all(
-      files.map((file) => StoredFile.create({
-        clientId: client._id,
-        taskId: ackTask!._id,
-        originalFileName: file.originalname,
-        mimeType: file.mimetype || 'application/octet-stream',
-        size: file.size,
-        data: file.buffer,
-      }))
-    );
-
-    const newFileEntries = storedFiles.map((storedFile) => ({
-      fileUrl: `/api/tasks/file/${client.trackingToken}/${ackTask!._id}/${storedFile._id}`,
-      storageId: storedFile._id,
-      originalFileName: storedFile.originalFileName,
-      mimeType: storedFile.mimeType,
+    const newFileEntries = files.map((file) => ({
+      fileUrl: file.fileUrl,
+      cloudinaryPublicId: file.publicId,
+      originalFileName: file.originalFileName,
+      mimeType: file.mimeType || 'application/octet-stream',
       uploadedAt: new Date(),
     }));
     ackTask.files = appendFiles ? [...ackTask.files, ...newFileEntries] : newFileEntries;
@@ -383,10 +372,6 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
       // dashboard must not remain blocked after the files are safely saved.
       void (async () => {
         try {
-          const attachments = files.map((file) => ({
-            name: file.originalname,
-            content: file.buffer.toString('base64'),
-          }));
           const ca = await User.findById(client.userId).select('name').lean();
           await sendFinalAckEmail(
             client.email!,
@@ -395,7 +380,7 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
             trackingUrl,
             client.serviceType,
             downloadUrl,
-            attachments,
+            [],
             isReplacement,
             ca?.name
           );
