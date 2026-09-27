@@ -265,6 +265,7 @@ export const deleteClientDocumentFile = async (req: Request, res: Response): Pro
 export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { clientId } = req.params;
+    const appendFiles = req.body.mode === 'append';
     const files = (req.files as Express.Multer.File[] | undefined) || [];
 
     if (files.length === 0) {
@@ -304,12 +305,14 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
       });
     } else {
       ackTask.status = 'Completed';
-      await Promise.all(
-        ackTask.files
-          .filter((file) => file.storageId)
-          .map((file) => StoredFile.findByIdAndDelete(file.storageId))
-      );
-      ackTask.files = [];
+      if (!appendFiles) {
+        await Promise.all(
+          ackTask.files
+            .filter((file) => file.storageId)
+            .map((file) => StoredFile.findByIdAndDelete(file.storageId))
+        );
+        ackTask.files = [];
+      }
       ackTask.finalDeliveryVersion = (ackTask.finalDeliveryVersion || 0) + 1;
     }
 
@@ -324,13 +327,14 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
       }))
     );
 
-    ackTask.files = storedFiles.map((storedFile) => ({
+    const newFileEntries = storedFiles.map((storedFile) => ({
       fileUrl: `/api/tasks/file/${client.trackingToken}/${ackTask!._id}/${storedFile._id}`,
       storageId: storedFile._id,
       originalFileName: storedFile.originalFileName,
       mimeType: storedFile.mimeType,
       uploadedAt: new Date(),
     }));
+    ackTask.files = appendFiles ? [...ackTask.files, ...newFileEntries] : newFileEntries;
     await ackTask.save();
 
     // Saare stages complete mark kar dein

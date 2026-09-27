@@ -49,6 +49,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   const [uploadingAck, setUploadingAck] = useState(false);
   const ackUploadInFlight = useRef(false);
   const [isReplacingAck, setIsReplacingAck] = useState(false);
+  const [isAddingAck, setIsAddingAck] = useState(false);
 
   const [drawerClient, setDrawerClient] = useState<any>(null);
   const [drawerData, setDrawerData] = useState<any>(null);
@@ -265,6 +266,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     setActiveClient(client);
     setLoadingTasks(true);
     setIsReplacingAck(false);
+    setIsAddingAck(false);
     setAckFiles([]);
     try {
       const res = await API.get(`/tasks/public/${client.trackingToken}`);
@@ -317,15 +319,17 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
 
     const data = new FormData();
     ackFiles.forEach((file) => data.append('files', file));
+    data.append('mode', isAddingAck ? 'append' : 'replace');
 
     setUploadingAck(true);
     try {
       const response = await API.post(`/tasks/ca-upload-ack/${activeClient._id}`, data, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      showToast('Final acknowledgement uploaded successfully.', 'success');
+      showToast(isAddingAck ? 'Additional final documents uploaded successfully.' : 'Final acknowledgement uploaded successfully.', 'success');
       setAckFiles([]);
       setIsReplacingAck(false);
+      setIsAddingAck(false);
       const savedTask = response.data.task;
       setClientTasks((current) => {
         const remaining = current
@@ -724,17 +728,15 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
                 <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs sm:text-sm">
                   <CheckCheck className="text-emerald-600" size={18} /> Deliver Final Acknowledgement
                 </div>
-                {ackFileItem?.fileUrl && !isReplacingAck && (
-                  <button
-                    onClick={() => setIsReplacingAck(true)}
-                    className="text-[11px] font-semibold text-emerald-800 bg-white border border-emerald-300 px-2.5 py-1 rounded-md hover:bg-emerald-100 transition cursor-pointer"
-                  >
-                    ✏️ Replace File
-                  </button>
+                {ackFileItem?.fileUrl && !isReplacingAck && !isAddingAck && (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setIsAddingAck(true)} className="text-[11px] font-semibold text-emerald-800 bg-white border border-emerald-300 px-2.5 py-1 rounded-md hover:bg-emerald-100 transition cursor-pointer">+ Add More Files</button>
+                    <button onClick={() => setIsReplacingAck(true)} className="text-[11px] font-semibold text-emerald-800 bg-white border border-emerald-300 px-2.5 py-1 rounded-md hover:bg-emerald-100 transition cursor-pointer">✏️ Replace Files</button>
+                  </div>
                 )}
               </div>
 
-              {ackFileItem?.fileUrl && !isReplacingAck ? (
+              {ackFileItem?.fileUrl && !isReplacingAck && !isAddingAck ? (
                 <div className="space-y-2.5">
                   {ackFilesList.map((file: any, index: number) => (
                     <div key={`${file.fileUrl}-${index}`} className="flex items-center justify-between bg-white p-3 rounded-lg border border-emerald-100">
@@ -770,6 +772,8 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
                   <p className="text-slate-600 text-[11px]">
                     {isReplacingAck 
                       ? 'Select corrected final documents. They will replace the old files.'
+                      : isAddingAck
+                      ? 'Select one or more additional final documents. Existing files will remain available to the client.'
                       : 'Select one or more final acknowledgement/receipt documents. This will mark all workflow stages as complete.'}
                   </p>
                   <div className="flex gap-2">
@@ -786,16 +790,16 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
                       disabled={uploadingAck || ackFiles.length === 0}
                       className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold rounded-lg text-xs whitespace-nowrap cursor-pointer transition shadow-xs flex items-center gap-1.5"
                     >
-                      {uploadingAck ? <Loader2 className="animate-spin" size={14} /> : isReplacingAck ? 'Replace Files' : 'Upload & Finish'}
+                      {uploadingAck ? <Loader2 className="animate-spin" size={14} /> : isReplacingAck ? 'Replace Files' : isAddingAck ? 'Add Files' : 'Upload & Finish'}
                     </button>
                   </div>
-                  {isReplacingAck && (
+                  {(isReplacingAck || isAddingAck) && (
                     <button
                       type="button"
-                      onClick={() => setIsReplacingAck(false)}
+                      onClick={() => { setIsReplacingAck(false); setIsAddingAck(false); }}
                       className="text-[11px] text-slate-500 hover:text-slate-700 underline cursor-pointer"
                     >
-                      Cancel Replace
+                      Cancel
                     </button>
                   )}
                 </form>

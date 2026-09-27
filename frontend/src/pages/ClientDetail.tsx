@@ -20,6 +20,7 @@ const ClientDetail: React.FC = () => {
   const [finalFiles, setFinalFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [replacing, setReplacing] = useState(false);
+  const [addingFiles, setAddingFiles] = useState(false);
   const uploadInFlight = useRef(false);
 
   const loadWorkflow = async (trackingToken: string) => {
@@ -90,6 +91,7 @@ const ClientDetail: React.FC = () => {
     setUploading(true);
     const payload = new FormData();
     finalFiles.forEach((file) => payload.append('files', file));
+    payload.append('mode', addingFiles ? 'append' : 'replace');
 
     try {
       await API.post(`/tasks/ca-upload-ack/${client._id}`, payload, {
@@ -97,8 +99,9 @@ const ClientDetail: React.FC = () => {
       });
       setFinalFiles([]);
       setReplacing(false);
+      setAddingFiles(false);
       await loadWorkflow(client.trackingToken);
-      showToast('Final document uploaded and client workflow completed.', 'success');
+      showToast(addingFiles ? 'Additional final documents uploaded successfully.' : 'Final document uploaded and client workflow completed.', 'success');
     } catch (error: any) {
       showToast(error.response?.data?.message || 'Could not upload the final document.', 'error');
     } finally {
@@ -186,10 +189,10 @@ const ClientDetail: React.FC = () => {
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="inline-flex items-center gap-2 text-xs font-extrabold text-emerald-900"><CheckCheck size={17} className="text-emerald-600" /> Deliver Final {serviceLabel} Document</div>
-                {finalDocuments.length > 0 && !replacing && <button onClick={() => setReplacing(true)} className="text-xs font-bold text-emerald-800 bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 cursor-pointer">Replace files</button>}
+                {finalDocuments.length > 0 && !replacing && !addingFiles && <div className="flex gap-2"><button onClick={() => setAddingFiles(true)} className="text-xs font-bold text-emerald-800 bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 cursor-pointer">Add more</button><button onClick={() => setReplacing(true)} className="text-xs font-bold text-emerald-800 bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 cursor-pointer">Replace files</button></div>}
               </div>
 
-              {finalDocuments.length > 0 && !replacing ? (
+              {finalDocuments.length > 0 && !replacing && !addingFiles ? (
                 <div className="space-y-2">
                   {finalDocuments.map((file: any, index: number) => (
                     <a key={`${file.fileUrl}-${index}`} href={`${BACKEND_URL}${file.fileUrl}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-xl bg-white border border-emerald-100 p-3">
@@ -202,9 +205,9 @@ const ClientDetail: React.FC = () => {
                 <form onSubmit={uploadFinalDocuments} className="space-y-3">
                   <input type="file" multiple required accept=".pdf,.png,.jpg,.jpeg" onChange={(event) => setFinalFiles(Array.from(event.target.files || []))} className="w-full rounded-lg border border-emerald-200 bg-white p-2 text-xs file:mr-2 file:rounded-md file:border-0 file:bg-emerald-100 file:px-2.5 file:py-1.5 file:text-xs file:font-bold file:text-emerald-800" />
                   <button type="submit" disabled={uploading || finalFiles.length === 0} className="w-full min-h-11 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold inline-flex justify-center items-center gap-2 cursor-pointer">
-                    {uploading ? <Loader2 className="animate-spin" size={15} /> : <Upload size={15} />}{replacing ? 'Replace Final Files' : 'Upload & Complete Workflow'}
+                    {uploading ? <Loader2 className="animate-spin" size={15} /> : <Upload size={15} />}{replacing ? 'Replace Final Files' : addingFiles ? 'Add Final Files' : 'Upload & Complete Workflow'}
                   </button>
-                  {replacing && <button type="button" onClick={() => setReplacing(false)} className="w-full text-xs font-semibold text-slate-500">Cancel replacement</button>}
+                  {(replacing || addingFiles) && <button type="button" onClick={() => { setReplacing(false); setAddingFiles(false); }} className="w-full text-xs font-semibold text-slate-500">Cancel</button>}
                 </form>
               )}
             </div>
