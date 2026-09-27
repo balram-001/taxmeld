@@ -109,7 +109,11 @@ const Pricing: React.FC = () => {
               </li>
               <li className="flex items-center gap-3">
                 <ShieldCheck size={16} className="text-indigo-600 shrink-0" />
-                <span>Secure Client Document Portal (ITR, GST, TDS)</span>
+                <span>Secure portal for <strong>ITR, GST, TDS &amp; Accounting/Audit</strong></span>
+              </li>
+              <li className="flex items-center gap-3">
+                <ShieldCheck size={16} className="text-violet-600 shrink-0" />
+                <span>Add <strong>custom document requirements</strong> for any client</span>
               </li>
               <li className="flex items-center gap-3">
                 <Zap size={16} className="text-amber-500 shrink-0" />
@@ -170,6 +174,14 @@ const Pricing: React.FC = () => {
               <li className="flex items-center gap-3">
                 <Mail size={16} className="text-blue-600 shrink-0" />
                 <span>Instant <strong>Email Compliance</strong> Updates</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <ShieldCheck size={16} className="text-indigo-600 shrink-0" />
+                <span>Secure portal for <strong>ITR, GST, TDS &amp; Accounting/Audit</strong></span>
+              </li>
+              <li className="flex items-center gap-3">
+                <ShieldCheck size={16} className="text-violet-600 shrink-0" />
+                <span>Add <strong>custom document requirements</strong> for any client</span>
               </li>
               <li className="flex items-center gap-3">
                 <ShieldCheck size={16} className="text-indigo-600 shrink-0" />

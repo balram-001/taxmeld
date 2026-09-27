@@ -16,13 +16,13 @@ const Payment: React.FC = () => {
     name: 'CA Professional Plan',
     amount: '399',
     cta: 'Pay ₹399 via Any UPI App',
-    description: 'Unlimited clients, 5 included staff seats, and priority practice support.',
+    description: 'Unlimited clients, 5 included staff seats, custom requirements, and all four filing services.',
   } : {
     key: 'starter_299',
     name: 'Starter CA Plan',
     amount: '299',
     cta: 'Pay ₹299 via Any UPI App',
-    description: 'Unlimited clients with document portals, workflow tracking, and reminders.',
+    description: 'Unlimited clients with ITR, GST, TDS, Accounting & Audit portals, custom requirements, and workflow tracking.',
   }, [plan]);
 
   const upiId = '7999422714-m7e1@axl';
