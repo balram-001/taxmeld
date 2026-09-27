@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { X, LogOut, CheckCircle2, Trash2 } from 'lucide-react';
+import { X, LogOut, CheckCircle2, Trash2, UploadCloud } from 'lucide-react';
 import axios from 'axios';
 
 import NavigationBar from './components/NavigationBar';
@@ -15,11 +15,23 @@ import Pricing from './pages/Pricing';
 import Payment from './pages/Payment';
 import ClientDetail from './pages/ClientDetail';
 import API from './api';
-import { useToast } from './toast';
 
 function ClientUploadNotifications({ enabled }: { enabled: boolean }) {
-  const { showToast } = useToast();
   const checkingRef = useRef(false);
+  const [queue, setQueue] = useState<string[]>([]);
+  const [currentNotification, setCurrentNotification] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (currentNotification || queue.length === 0) return;
+    setCurrentNotification(queue[0]);
+    setQueue((current) => current.slice(1));
+  }, [currentNotification, queue]);
+
+  useEffect(() => {
+    if (!currentNotification) return;
+    const timer = window.setTimeout(() => setCurrentNotification(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [currentNotification]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -35,10 +47,11 @@ function ClientUploadNotifications({ enabled }: { enabled: boolean }) {
         const newUploads = clients.filter((client: any) => new Date(client.lastClientUploadAt || 0).getTime() > lastSeen);
 
         if (newUploads.length > 0) {
-          newUploads.forEach((client: any) => {
+          const notifications = newUploads.map((client: any) => {
             const clientNumber = clients.findIndex((item: any) => item._id === client._id) + 1;
-            showToast(`Client #${clientNumber} — ${client.name} (${client.panNumber}) has uploaded documents.`, 'info');
+            return `Client #${clientNumber} — ${client.name} (${client.panNumber}) has uploaded documents.`;
           });
+          setQueue((current) => [...current, ...notifications]);
           const newestUpload = Math.max(...newUploads.map((client: any) => new Date(client.lastClientUploadAt).getTime()));
           localStorage.setItem(seenKey, String(newestUpload));
         }
@@ -52,9 +65,19 @@ function ClientUploadNotifications({ enabled }: { enabled: boolean }) {
     void checkForNewUploads();
     const timer = window.setInterval(checkForNewUploads, 25000);
     return () => window.clearInterval(timer);
-  }, [enabled, showToast]);
+  }, [enabled]);
 
-  return null;
+  if (!currentNotification) return null;
+
+  return (
+    <div className="fixed right-4 top-4 z-[110] w-[min(24rem,calc(100vw-2rem))] animate-in fade-in slide-in-from-top-2 duration-200" role="status" aria-live="polite">
+      <div className="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm font-medium text-sky-950 shadow-xl">
+        <UploadCloud size={20} className="mt-0.5 shrink-0 text-sky-600" />
+        <p className="flex-1 leading-5">{currentNotification}</p>
+        <button type="button" onClick={() => setCurrentNotification(null)} className="rounded p-0.5 text-sky-700/60 hover:bg-sky-100 hover:text-sky-900" aria-label="Close notification"><X size={17} /></button>
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
