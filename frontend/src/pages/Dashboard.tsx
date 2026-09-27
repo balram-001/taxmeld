@@ -464,7 +464,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Client</p>
+                  <p className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Client #{clients.findIndex((item) => item._id === client._id) + 1}</p>
                   <h3 className="mt-1 truncate text-base font-extrabold text-slate-900 group-hover:text-emerald-700">{client.name}</h3>
                   <p className="mt-1 text-sm text-slate-600">{client.phone || client.whatsappNumber || 'No phone number'}</p>
                 </div>
@@ -493,7 +493,10 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
               className="w-full text-left bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-2 hover:border-emerald-500 active:bg-emerald-50 transition cursor-pointer"
             >
               <div className="flex items-center justify-between">
-                <h3 className="font-bold text-slate-900 text-sm truncate">{client.name}</h3>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wide font-bold text-slate-400">Client #{clients.findIndex((item) => item._id === client._id) + 1}</p>
+                  <h3 className="mt-0.5 font-bold text-slate-900 text-sm truncate">{client.name}</h3>
+                </div>
                 <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200">
                   {client.panNumber}
                 </span>
