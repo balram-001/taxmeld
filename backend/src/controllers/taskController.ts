@@ -211,6 +211,10 @@ export const uploadClientDocument = async (req: Request, res: Response): Promise
     docTask.status = 'Completed';
     await docTask.save();
 
+    // Lets the CA dashboard show that this client has new documents to review.
+    client.lastClientUploadAt = new Date();
+    await client.save();
+
     await updateStage2Status(client._id, token);
 
     res.status(200).json({ message: 'Files uploaded successfully', uploadedCount: files.length });
@@ -336,6 +340,10 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
     }));
     ackTask.files = appendFiles ? [...ackTask.files, ...newFileEntries] : newFileEntries;
     await ackTask.save();
+
+    // A final delivery resolves the pending client-document notification.
+    client.lastFinalDeliveryAt = new Date();
+    await client.save();
 
     // Saare stages complete mark kar dein
     await DocumentTask.updateMany(

@@ -306,6 +306,10 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   );
   const ackFilesList = ackTask?.files || [];
   const ackFileItem = ackFilesList[0];
+  const clientsAwaitingReview = clients.filter((client) => {
+    if (!client.lastClientUploadAt) return false;
+    return !client.lastFinalDeliveryAt || new Date(client.lastClientUploadAt) > new Date(client.lastFinalDeliveryAt);
+  });
 
   if (pageLoading) {
     return (
@@ -448,6 +452,19 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         />
       </div>
 
+      {clientsAwaitingReview.length > 0 && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-extrabold text-amber-900"><Clock size={17} /> New client document uploads</div>
+          <div className="mt-2 space-y-1.5">
+            {clientsAwaitingReview.map((client) => (
+              <button key={client._id} type="button" onClick={() => navigate(`/client/${client._id}`)} className="block w-full text-left text-xs text-amber-900 hover:underline cursor-pointer">
+                Client #{clients.findIndex((item) => item._id === client._id) + 1} — <strong>{client.name}</strong> · PAN {client.panNumber} · {client.phone || client.whatsappNumber || 'No phone number'} has uploaded documents. Review the client workspace.
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Desktop client cards match the focused mobile dashboard. Details open in one workspace. */}
       <div className="hidden md:grid grid-cols-2 xl:grid-cols-3 gap-4">
         {filteredClients.length === 0 ? (
@@ -471,7 +488,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
                 <span className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-xs font-bold text-emerald-700">{client.panNumber}</span>
               </div>
               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold text-emerald-700">
-                <span>Open client workspace</span><span aria-hidden="true">→</span>
+                <span>{client.lastClientUploadAt && (!client.lastFinalDeliveryAt || new Date(client.lastClientUploadAt) > new Date(client.lastFinalDeliveryAt)) ? 'Documents uploaded — review required' : client.lastFinalDeliveryAt ? 'Filing completed' : 'Open client workspace'}</span><span aria-hidden="true">→</span>
               </div>
             </button>
           ))
@@ -503,7 +520,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
               </div>
               <div className="text-xs text-slate-600 flex items-center justify-between pt-1">
                 <span>📞 {client.phone || client.whatsappNumber || 'No phone number'}</span>
-                <span className="text-[11px] font-semibold text-indigo-600">Open Client →</span>
+                <span className={`text-[11px] font-semibold ${client.lastClientUploadAt && (!client.lastFinalDeliveryAt || new Date(client.lastClientUploadAt) > new Date(client.lastFinalDeliveryAt)) ? 'text-amber-700' : client.lastFinalDeliveryAt ? 'text-emerald-700' : 'text-indigo-600'}`}>{client.lastClientUploadAt && (!client.lastFinalDeliveryAt || new Date(client.lastClientUploadAt) > new Date(client.lastFinalDeliveryAt)) ? 'Documents uploaded' : client.lastFinalDeliveryAt ? 'Completed' : 'Open Client →'}</span>
               </div>
             </button>
           ))

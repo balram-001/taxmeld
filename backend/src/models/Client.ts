@@ -15,6 +15,8 @@ export interface IClient extends Document {
   userId: mongoose.Types.ObjectId;
   serviceType: string;
   customRequirements?: ICustomRequirement[];
+  lastClientUploadAt?: Date;
+  lastFinalDeliveryAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +37,8 @@ const ClientSchema: Schema = new Schema(
         hint: { type: String, default: '' },
       },
     ],
+    lastClientUploadAt: { type: Date },
+    lastFinalDeliveryAt: { type: Date },
   },
   { timestamps: true }
 );
