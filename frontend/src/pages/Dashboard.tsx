@@ -5,8 +5,7 @@ import { BACKEND_URL } from '../config';
 import { useToast } from '../toast';
 import { 
   Shield, Plus, Search, ExternalLink, X, 
-  MessageCircle, Copy, Check, Loader2, FileText, SlidersHorizontal,
-  Eye, Download, Trash2, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles, ArrowLeft, Users
+  MessageCircle, Loader2, FileText, Download, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles, ArrowLeft, Users
 } from 'lucide-react';
 
 const AVAILABLE_SERVICES = [
@@ -30,7 +29,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
-  const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   // Trial and subscription states
   const [userData, setUserData] = useState<any>(null);
@@ -42,24 +40,24 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   const [newReqName, setNewReqName] = useState('');
   const [newReqHint, setNewReqHint] = useState('');
 
+  // Legacy modal state is retained for existing deep links; all normal client
+  // management now opens the dedicated client workspace.
   const [activeClient, setActiveClient] = useState<any>(null);
   const [clientTasks, setClientTasks] = useState<any[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [loadingTasks] = useState(false);
   const [ackFiles, setAckFiles] = useState<File[]>([]);
   const [uploadingAck, setUploadingAck] = useState(false);
   const ackUploadInFlight = useRef(false);
   const [isReplacingAck, setIsReplacingAck] = useState(false);
   const [isAddingAck, setIsAddingAck] = useState(false);
-
   const [drawerClient, setDrawerClient] = useState<any>(null);
-  const [drawerData, setDrawerData] = useState<any>(null);
-  const [loadingDrawer, setLoadingDrawer] = useState(false);
-
+  const [drawerData] = useState<any>(null);
+  const [loadingDrawer] = useState(false);
   const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
-  const [previewDocName, setPreviewDocName] = useState<string>('');
-
+  const [previewDocName, setPreviewDocName] = useState('');
   const [clientToDelete, setClientToDelete] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
+
 
   const [formData, setFormData] = useState({
     name: '',
@@ -249,152 +247,53 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     setDeleting(true);
     try {
       await API.delete(`/clients/${clientToDelete._id}`);
-      setClients((prev) => prev.filter((c) => c._id !== clientToDelete._id));
+      setClients((current) => current.filter((client) => client._id !== clientToDelete._id));
       setClientToDelete(null);
-    } catch (err: any) {
-      showToast(err.response?.data?.message || 'We could not delete this client. Please try again.', 'error');
+    } catch (error: any) {
+      showToast(error.response?.data?.message || 'Could not delete this client.', 'error');
     } finally {
       setDeleting(false);
     }
   };
 
-  const openWorkflowModal = async (client: any) => {
-    if (isDemo) {
-      onDemoLimit?.();
-      return;
-    }
-    setActiveClient(client);
-    setLoadingTasks(true);
-    setIsReplacingAck(false);
-    setIsAddingAck(false);
-    setAckFiles([]);
+  const handleUpdateTaskStatus = async (taskId: string, status: string) => {
     try {
-      const res = await API.get(`/tasks/public/${client.trackingToken}`);
-      setClientTasks(res.data.tasks || []);
-    } catch (err) {
-      console.error('Error fetching tasks:', err);
-    } finally {
-      setLoadingTasks(false);
+      await API.put(`/tasks/${taskId}`, { status });
+      setClientTasks((current) => current.map((task) => task._id === taskId ? { ...task, status } : task));
+    } catch {
+      showToast('Could not update the workflow stage.', 'error');
     }
   };
 
-  const openDrawerPreview = async (client: any) => {
-    if (isDemo) {
-      onDemoLimit?.();
-      return;
-    }
-    setDrawerClient(client);
-    setLoadingDrawer(true);
-    try {
-      const res = await API.get(`/tasks/public/${client.trackingToken}`);
-      setDrawerData(res.data);
-    } catch (err) {
-      console.error('Error loading client drawer:', err);
-    } finally {
-      setLoadingDrawer(false);
-    }
-  };
-
-  const handleUpdateTaskStatus = async (taskId: string, newStatus: string) => {
-    try {
-      await API.put(`/tasks/${taskId}`, { status: newStatus });
-      setClientTasks((prev) =>
-        prev.map((t) => (t._id === taskId ? { ...t, status: newStatus } : t))
-      );
-      if (drawerData) {
-        setDrawerData((prev: any) => ({
-          ...prev,
-          tasks: prev.tasks.map((t: any) => (t._id === taskId ? { ...t, status: newStatus } : t)),
-        }));
-      }
-    } catch (err) {
-      showToast('We could not update the stage status. Please try again.', 'error');
-    }
-  };
-
-  const handleUploadAck = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (ackUploadInFlight.current || ackFiles.length === 0 || !activeClient) return;
+  const handleUploadAck = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!activeClient || ackFiles.length === 0 || ackUploadInFlight.current) return;
     ackUploadInFlight.current = true;
-
-    const data = new FormData();
-    ackFiles.forEach((file) => data.append('files', file));
-    data.append('mode', isAddingAck ? 'append' : 'replace');
-
     setUploadingAck(true);
+    const payload = new FormData();
+    ackFiles.forEach((file) => payload.append('files', file));
+    payload.append('mode', isAddingAck ? 'append' : 'replace');
     try {
-      const response = await API.post(`/tasks/ca-upload-ack/${activeClient._id}`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      showToast(isAddingAck ? 'Additional final documents uploaded successfully.' : 'Final acknowledgement uploaded successfully.', 'success');
+      const response = await API.post(`/tasks/ca-upload-ack/${activeClient._id}`, payload);
+      setClientTasks((current) => [...current.filter((task) => task._id !== response.data.task._id), response.data.task]);
       setAckFiles([]);
       setIsReplacingAck(false);
       setIsAddingAck(false);
-      const savedTask = response.data.task;
-      setClientTasks((current) => {
-        const remaining = current
-          .filter((task) => task._id !== savedTask._id)
-          .map((task) => ({ ...task, status: 'Completed' }));
-        return [...remaining, savedTask];
-      });
-    } catch (err: any) {
-      showToast(err.response?.data?.message || 'We could not upload the acknowledgement. Please try again.', 'error');
+      showToast('Final documents uploaded successfully.', 'success');
+    } catch (error: any) {
+      showToast(error.response?.data?.message || 'Could not upload the final documents.', 'error');
     } finally {
       setUploadingAck(false);
       ackUploadInFlight.current = false;
     }
   };
 
-  const sendWhatsAppMessage = (client: any) => {
-    const trackingUrl = `${window.location.origin}/track/${client.trackingToken}`;
-    const rawPhone = client.phone || client.whatsappNumber || '';
-    const cleanPhone = rawPhone.replace(/\D/g, '');
-    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-
-    const standardServices = client.serviceType ? client.serviceType.split(', ').filter(Boolean) : [];
-    const customList = Array.isArray(client.customRequirements) ? client.customRequirements.map((r: any) => r.name) : [];
-    const allRequired = [...standardServices, ...customList];
-
-    let message = `*TaxMeld CA Portal*\n\nHello ${client.name},\n\n`;
-
-    if (allRequired.length > 0) {
-      message += `The following documents are required for your compliance work:\n`;
-      allRequired.forEach((req) => {
-        message += `• ${req}\n`;
-      });
-      message += `\n*Upload Documents / View Status*\n${trackingUrl}\n\nPlease open the secure portal to upload your documents.\n\nRegards,\n${caName}\nTaxMeld CA Portal`;
-    } else {
-      message += `Your filing portal is ready.\n\n*Open Client Portal*\n${trackingUrl}\n\nYou can view your filing status and documents there.\n\nRegards,\n${caName}\nTaxMeld CA Portal`;
-    }
-
-    window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
-  };
-
   const sendDeliveryWhatsApp = (client: any) => {
+    const phone = String(client.phone || client.whatsappNumber || '').replace(/\D/g, '');
+    const target = phone.length === 10 ? `91${phone}` : phone;
     const trackingUrl = `${window.location.origin}/track/${client.trackingToken}`;
-    const rawPhone = client.phone || client.whatsappNumber || '';
-    const cleanPhone = rawPhone.replace(/\D/g, '');
-    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-
-    const service = (client.serviceType || '').toLowerCase();
-    const docName = service.includes('gst')
-      ? 'GSTR Filing Acknowledgement'
-      : service.includes('tds')
-      ? 'TDS Filing Receipt'
-      : service.includes('itr') || service.includes('income tax')
-      ? 'ITR-V Acknowledgement Receipt'
-      : 'Final Compliance Receipt';
-
-    const message = `*TaxMeld CA Portal*\n\nHello ${client.name},\n\nYour compliance work has been completed successfully. ✅\n\nYour official *${docName}* is available in the secure portal.\n\n*Download Document / Track Filing*\n${trackingUrl}\n\nRegards,\n${caName}\nTaxMeld CA Portal`;
-
-    window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
-  };
-
-  const copyToClipboard = (token: string) => {
-    const url = `${window.location.origin}/track/${token}`;
-    navigator.clipboard.writeText(url);
-    setCopiedToken(token);
-    setTimeout(() => setCopiedToken(null), 2000);
+    const message = `*TaxMeld CA Portal*\n\nHello ${client.name},\n\nYour final document is ready. Download it from your secure portal:\n${trackingUrl}\n\nRegards,\n${caName}`;
+    window.open(`https://wa.me/${target}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const filteredClients = clients.filter((c) =>
@@ -403,7 +302,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   );
 
   const ackTask = clientTasks.find(
-    (t) => t.title === 'Acknowledgement Generated' || t.documentType === 'ITR Acknowledgement'
+    (task) => task.title === 'Acknowledgement Generated' || task.documentType === 'ITR Acknowledgement'
   );
   const ackFilesList = ackTask?.files || [];
   const ackFileItem = ackFilesList[0];
@@ -549,98 +448,34 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         />
       </div>
 
-      {/* Desktop Table View */}
-      <div className="hidden md:block bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 text-xs font-semibold uppercase tracking-wider">
-              <th className="p-4">Client Name & Contact</th>
-              <th className="p-4">PAN Number</th>
-              <th className="p-4">Services & Requirements</th>
-              <th className="p-4">Portal View</th>
-              <th className="p-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 text-sm">
-            {filteredClients.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="p-10 text-center text-slate-500">
-                  No clients found. Click <strong>Add New Client</strong> to get started!
-                </td>
-              </tr>
-            ) : (
-              filteredClients.map((client) => (
-                <tr key={client._id} className="hover:bg-slate-50/80 transition">
-                  <td className="p-4 font-medium text-slate-900">
-                    <div>{client.name}</div>
-                    <div className="text-xs text-slate-500 font-normal">{client.phone || client.whatsappNumber || client.email || 'No contact'}</div>
-                  </td>
-                  <td className="p-4 font-mono font-semibold text-emerald-700">{client.panNumber}</td>
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-1 max-w-xs">
-                      {(client.serviceType ? client.serviceType.split(', ').filter(Boolean) : []).map((srv: string, idx: number) => (
-                        <span key={idx} className="px-2 py-0.5 text-[11px] rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200 whitespace-nowrap">
-                          {srv}
-                        </span>
-                      ))}
-                      {client.customRequirements?.map((cr: any, idx: number) => (
-                        <span key={`cr-${idx}`} className="px-2 py-0.5 text-[11px] rounded-md bg-emerald-50 text-emerald-800 font-medium border border-emerald-200 whitespace-nowrap">
-                          + {cr.name}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="inline-flex items-center gap-1.5">
-                      <button
-                        onClick={() => openDrawerPreview(client)}
-                        className="text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1 text-xs font-medium bg-emerald-50 px-3 py-1.5 rounded-md border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
-                      >
-                        <Eye size={13} /> Quick View
-                      </button>
-                      <Link
-                        to={`/track/${client.trackingToken}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-slate-400 hover:text-emerald-700 p-1.5 hover:bg-slate-100 rounded-md border border-slate-200 transition"
-                      >
-                        <ExternalLink size={13} />
-                      </Link>
-                    </div>
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="inline-flex items-center gap-2">
-                      <button
-                        onClick={() => openWorkflowModal(client)}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-slate-700 hover:text-slate-900 transition inline-flex items-center gap-1.5 text-xs font-medium cursor-pointer"
-                      >
-                        <SlidersHorizontal size={14} /> Workflow
-                      </button>
-                      <button
-                        onClick={() => copyToClipboard(client.trackingToken)}
-                        className="p-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition cursor-pointer"
-                      >
-                        {copiedToken === client.trackingToken ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
-                      </button>
-                      <button
-                        onClick={() => sendWhatsAppMessage(client)}
-                        className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-lg text-emerald-700 hover:text-emerald-800 transition inline-flex items-center gap-1.5 text-xs font-medium cursor-pointer"
-                      >
-                        <MessageCircle size={15} className="text-emerald-600" /> WhatsApp
-                      </button>
-                      <button
-                        onClick={() => setClientToDelete(client)}
-                        className="p-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-lg transition cursor-pointer"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {/* Desktop client cards match the focused mobile dashboard. Details open in one workspace. */}
+      <div className="hidden md:grid grid-cols-2 xl:grid-cols-3 gap-4">
+        {filteredClients.length === 0 ? (
+          <div className="col-span-full bg-white border border-slate-200 rounded-xl p-10 text-center text-sm text-slate-500">
+            No clients found. Click <strong>Add New Client</strong> to get started.
+          </div>
+        ) : (
+          filteredClients.map((client) => (
+            <button
+              type="button"
+              key={client._id}
+              onClick={() => navigate(`/client/${client._id}`)}
+              className="group w-full min-h-36 text-left bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:border-emerald-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition cursor-pointer"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-wide font-bold text-slate-400">Client</p>
+                  <h3 className="mt-1 truncate text-base font-extrabold text-slate-900 group-hover:text-emerald-700">{client.name}</h3>
+                  <p className="mt-1 text-sm text-slate-600">{client.phone || client.whatsappNumber || 'No phone number'}</p>
+                </div>
+                <span className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-xs font-bold text-emerald-700">{client.panNumber}</span>
+              </div>
+              <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold text-emerald-700">
+                <span>Open client workspace</span><span aria-hidden="true">→</span>
+              </div>
+            </button>
+          ))
+        )}
       </div>
 
       {/* Mobile client cards open the dedicated ClientDetail workflow screen. */}
