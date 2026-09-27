@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { DocumentTask } from '../models/DocumentTask';
 import { Client } from '../models/Client';
 import { User } from '../models/User';
+import { StoredFile } from '../models/StoredFile';
 import { AuthRequest } from '../middleware/authMiddleware';
 import fs from 'fs';
 import path from 'path';
@@ -168,24 +169,14 @@ export const uploadClientDocument = async (req: Request, res: Response): Promise
       return;
     }
 
-    const newFilesList = files.map((file) => ({
-      fileUrl: `/uploads/${file.filename}`,
-      originalFileName: file.originalname,
-      uploadedAt: new Date(),
-    }));
-
     let docTask = await DocumentTask.findOne({
       clientId: client._id,
       documentType: 'Client Document',
       serviceCategory: serviceCategory,
     });
 
-    if (docTask) {
-      docTask.files.push(...newFilesList);
-      docTask.status = 'Completed';
-      await docTask.save();
-    } else {
-      await DocumentTask.create({
+    if (!docTask) {
+      docTask = await DocumentTask.create({
         title: `Document - ${serviceCategory}`,
         documentType: 'Client Document',
         serviceCategory: serviceCategory,
@@ -193,9 +184,32 @@ export const uploadClientDocument = async (req: Request, res: Response): Promise
         caId: client.userId,
         token: token,
         status: 'Completed',
-        files: newFilesList,
+        files: [],
       });
     }
+
+    const storedFiles = await Promise.all(
+      files.map((file) => StoredFile.create({
+        clientId: client._id,
+        taskId: docTask!._id,
+        originalFileName: file.originalname,
+        mimeType: file.mimetype || 'application/octet-stream',
+        size: file.size,
+        data: file.buffer,
+      }))
+    );
+
+    const newFilesList = storedFiles.map((storedFile) => ({
+      fileUrl: `/api/tasks/file/${token}/${docTask!._id}/${storedFile._id}`,
+      storageId: storedFile._id,
+      originalFileName: storedFile.originalFileName,
+      mimeType: storedFile.mimeType,
+      uploadedAt: new Date(),
+    }));
+
+    docTask.files.push(...newFilesList);
+    docTask.status = 'Completed';
+    await docTask.save();
 
     await updateStage2Status(client._id, token);
 
@@ -231,12 +245,7 @@ export const deleteClientDocumentFile = async (req: Request, res: Response): Pro
     }
 
     const targetFile = task.files[idx];
-    if (targetFile?.fileUrl) {
-      const diskPath = path.join(__dirname, '../../', targetFile.fileUrl);
-      if (fs.existsSync(diskPath)) {
-        try { fs.unlinkSync(diskPath); } catch (e) { console.error('Error deleting file:', e); }
-      }
-    }
+    if (targetFile?.storageId) await StoredFile.findByIdAndDelete(targetFile.storageId);
 
     task.files.splice(idx, 1);
     if (task.files.length === 0) {
@@ -269,12 +278,6 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
       return;
     }
 
-    const uploadedFiles = files.map((file) => ({
-      fileUrl: `/uploads/${file.filename}`,
-      originalFileName: file.originalname,
-      uploadedAt: new Date(),
-    }));
-
     // Update or Create Final Acknowledgement Task
     let ackTask = await DocumentTask.findOne({
       clientId: client._id,
@@ -296,15 +299,39 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
         token: client.trackingToken,
         status: 'Completed',
         remarks: 'Final ITR-V Generated & Ready for Download',
-        files: uploadedFiles,
+        files: [],
         finalDeliveryVersion: 1,
       });
     } else {
       ackTask.status = 'Completed';
-      ackTask.files = uploadedFiles;
+      await Promise.all(
+        ackTask.files
+          .filter((file) => file.storageId)
+          .map((file) => StoredFile.findByIdAndDelete(file.storageId))
+      );
+      ackTask.files = [];
       ackTask.finalDeliveryVersion = (ackTask.finalDeliveryVersion || 0) + 1;
-      await ackTask.save();
     }
+
+    const storedFiles = await Promise.all(
+      files.map((file) => StoredFile.create({
+        clientId: client._id,
+        taskId: ackTask!._id,
+        originalFileName: file.originalname,
+        mimeType: file.mimetype || 'application/octet-stream',
+        size: file.size,
+        data: file.buffer,
+      }))
+    );
+
+    ackTask.files = storedFiles.map((storedFile) => ({
+      fileUrl: `/api/tasks/file/${client.trackingToken}/${ackTask!._id}/${storedFile._id}`,
+      storageId: storedFile._id,
+      originalFileName: storedFile.originalFileName,
+      mimeType: storedFile.mimeType,
+      uploadedAt: new Date(),
+    }));
+    await ackTask.save();
 
     // Saare stages complete mark kar dein
     await DocumentTask.updateMany(
@@ -324,7 +351,7 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
         try {
           const attachments = files.map((file) => ({
             name: file.originalname,
-            content: fs.readFileSync(file.path).toString('base64'),
+            content: file.buffer.toString('base64'),
           }));
           const ca = await User.findById(client.userId).select('name').lean();
           await sendFinalAckEmail(
@@ -392,6 +419,18 @@ export const downloadClientFile = async (req: Request, res: Response): Promise<v
       return;
     }
 
+    if (file.storageId) {
+      const storedFile = await StoredFile.findById(file.storageId);
+      if (!storedFile) {
+        res.status(404).json({ message: 'This document is no longer available.' });
+        return;
+      }
+      res.setHeader('Content-Type', storedFile.mimeType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.originalFileName || storedFile.originalFileName)}"`);
+      res.status(200).send(storedFile.data);
+      return;
+    }
+
     const storedFileName = path.basename(file.fileUrl);
     const absolutePath = path.resolve(process.cwd(), 'uploads', storedFileName);
     if (!fs.existsSync(absolutePath)) {
@@ -402,5 +441,28 @@ export const downloadClientFile = async (req: Request, res: Response): Promise<v
     res.download(absolutePath, file.originalFileName || storedFileName);
   } catch (error) {
     res.status(404).json({ message: 'This document link is invalid or has expired.' });
+  }
+};
+
+export const getStoredFile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token, taskId, fileId } = req.params;
+    const task = await DocumentTask.findOne({ _id: taskId, token });
+    if (!task || !task.files.some((file) => String(file.storageId) === fileId)) {
+      res.status(404).json({ message: 'This document is no longer available.' });
+      return;
+    }
+
+    const storedFile = await StoredFile.findById(fileId);
+    if (!storedFile) {
+      res.status(404).json({ message: 'This document is no longer available.' });
+      return;
+    }
+
+    res.setHeader('Content-Type', storedFile.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(storedFile.originalFileName)}"`);
+    res.status(200).send(storedFile.data);
+  } catch {
+    res.status(404).json({ message: 'This document is no longer available.' });
   }
 };

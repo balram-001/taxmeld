@@ -4,6 +4,8 @@ export interface IUploadedFile {
   fileUrl: string;
   originalFileName: string;
   uploadedAt: Date;
+  storageId?: mongoose.Types.ObjectId;
+  mimeType?: string;
 }
 
 export interface IDocumentTask extends Document {
@@ -43,6 +45,8 @@ const DocumentTaskSchema: Schema = new Schema(
         fileUrl: { type: String, required: true },
         originalFileName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now },
+        storageId: { type: Schema.Types.ObjectId, ref: 'StoredFile' },
+        mimeType: { type: String, default: 'application/octet-stream' },
       },
     ],
   },

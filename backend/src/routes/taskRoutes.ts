@@ -1,6 +1,5 @@
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
 import {
   getPublicTasks,
   uploadClientDocument,
@@ -8,28 +7,23 @@ import {
   uploadFinalAcknowledgement,
   updateTaskStatus,
   downloadClientFile,
+  getStoredFile,
 } from '../controllers/taskController';
 import { protect } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024, files: 10 },
 });
-
-const upload = multer({ storage });
 
 // Public Tracking & Client File Upload Routes
 router.get('/public/:token', getPublicTasks);
 router.post('/upload/:token', upload.array('files', 10), uploadClientDocument);
 router.delete('/upload/:token/file/:taskId/:fileIndex', deleteClientDocumentFile);
 router.get('/download/:token/:taskId/:fileIndex', downloadClientFile);
+router.get('/file/:token/:taskId/:fileId', getStoredFile);
 
 // CA Dashboard Routes
 router.post('/ca-upload-ack/:clientId', protect, upload.array('files', 10), uploadFinalAcknowledgement);

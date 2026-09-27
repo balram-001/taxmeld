@@ -5,6 +5,7 @@ dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import multer from 'multer';
 import dotenv from 'dotenv';
 import path from 'path';
 import { connectDB } from './config/db';
@@ -104,6 +105,17 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/demo-leads', demoLeadRoutes);
 app.use('/api/payment', paymentRoutes);
+
+app.use((error: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (error instanceof multer.MulterError) {
+    const message = error.code === 'LIMIT_FILE_SIZE'
+      ? 'Each file must be 4 MB or smaller.'
+      : 'Upload could not be processed. Please select fewer files and try again.';
+    res.status(400).json({ message, error: message });
+    return;
+  }
+  next(error);
+});
 
 // Root route
 app.get('/', (_req, res) => {
