@@ -200,7 +200,7 @@ const ClientDetail: React.FC = () => {
                 <form onSubmit={uploadFinalDocuments} className="space-y-3">
                   <input type="file" multiple required accept=".pdf,.png,.jpg,.jpeg" onChange={(event) => setFinalFiles(Array.from(event.target.files || []))} className="w-full rounded-lg border border-emerald-200 bg-white p-2 text-xs file:mr-2 file:rounded-md file:border-0 file:bg-emerald-100 file:px-2.5 file:py-1.5 file:text-xs file:font-bold file:text-emerald-800" />
                   <button type="submit" disabled={uploading || finalFiles.length === 0} className="w-full min-h-11 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold inline-flex justify-center items-center gap-2 cursor-pointer">
-                    {uploading ? <Loader2 className="animate-spin" size={15} /> : <Upload size={15} />}{replacing ? 'Replace Final Files' : addingFiles ? 'Add Final Files' : 'Upload & Complete Workflow'}
+                    {uploading ? <Loader2 className="animate-spin" size={15} /> : <Upload size={15} />}{replacing ? 'Replace Final Files' : addingFiles ? 'Add Final Files' : 'Send Final Documents to Client'}
                   </button>
                   {(replacing || addingFiles) && <button type="button" onClick={() => { setReplacing(false); setAddingFiles(false); }} className="w-full text-xs font-semibold text-slate-500">Cancel</button>}
                 </form>

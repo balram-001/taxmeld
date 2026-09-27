@@ -9,6 +9,7 @@ import {
   getStoredFile,
   createClientUploadSignature,
   createCAUploadSignature,
+  submitClientDocuments,
 } from '../controllers/taskController';
 import { protect } from '../middleware/authMiddleware';
 
@@ -18,6 +19,7 @@ const router = express.Router();
 router.get('/public/:token', getPublicTasks);
 router.post('/upload-signature/:token', createClientUploadSignature);
 router.post('/upload/:token', uploadClientDocument);
+router.post('/submit/:token', submitClientDocuments);
 router.delete('/upload/:token/file/:taskId/:fileIndex', deleteClientDocumentFile);
 router.get('/download/:token/:taskId/:fileIndex', downloadClientFile);
 router.get('/file/:token/:taskId/:fileId', getStoredFile);

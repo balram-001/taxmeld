@@ -233,15 +233,33 @@ export const uploadClientDocument = async (req: Request, res: Response): Promise
     docTask.status = 'Completed';
     await docTask.save();
 
-    // Lets the CA dashboard show that this client has new documents to review.
-    client.lastClientUploadAt = new Date();
-    await client.save();
-
     await updateStage2Status(client._id, token);
 
     res.status(200).json({ message: 'Files uploaded successfully', uploadedCount: files.length });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error' });
+  }
+};
+
+// Client explicitly submits all uploaded documents to the CA after reviewing them.
+export const submitClientDocuments = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const token = req.params.token as string;
+    const client = await Client.findOne({ trackingToken: token });
+    if (!client) {
+      res.status(404).json({ message: 'Client not found.' });
+      return;
+    }
+    const uploadedCount = await DocumentTask.countDocuments({ clientId: client._id, documentType: 'Client Document', 'files.0': { $exists: true } });
+    if (uploadedCount === 0) {
+      res.status(400).json({ message: 'Please upload at least one document before submitting.' });
+      return;
+    }
+    client.lastClientUploadAt = new Date();
+    await client.save();
+    res.status(200).json({ message: 'Documents submitted to your CA successfully.' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Could not submit documents.' });
   }
 };
 

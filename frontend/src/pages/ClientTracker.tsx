@@ -22,6 +22,7 @@ export default function ClientTracker() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploadingStatus, setUploadingStatus] = useState<{ category: string; count: number } | null>(null);
+  const [submittingDocuments, setSubmittingDocuments] = useState(false);
 
   // Additional custom slots added by client/user
   const [extraCustomReqs, setExtraCustomReqs] = useState<{ name: string; hint: string }[]>([]);
@@ -73,6 +74,20 @@ export default function ClientTracker() {
       await fetchStatus();
     } catch (err: any) {
       showToast('That document is no longer available. Refresh the page and try again.', 'error');
+    }
+  };
+
+  const submitDocumentsToCA = async () => {
+    if (submittingDocuments) return;
+    setSubmittingDocuments(true);
+    try {
+      await API.post(`/tasks/submit/${token}`);
+      showToast('Documents submitted to your CA successfully.', 'success');
+      await fetchStatus();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Could not submit documents. Please try again.', 'error');
+    } finally {
+      setSubmittingDocuments(false);
     }
   };
 
@@ -352,6 +367,15 @@ export default function ClientTracker() {
             <Plus size={14} /> Need to upload any other document? Add custom slot
           </button>
         </div>
+        <button
+          type="button"
+          onClick={submitDocumentsToCA}
+          disabled={submittingDocuments || !data.tasks?.some((task: any) => task.documentType === 'Client Document' && task.files?.length > 0)}
+          className="w-full min-h-11 rounded-xl bg-emerald-600 px-4 text-xs font-extrabold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition inline-flex items-center justify-center gap-2 cursor-pointer"
+        >
+          {submittingDocuments ? <Loader2 size={16} className="animate-spin" /> : <CheckCheck size={16} />} Submit Documents to CA
+        </button>
+        <p className="text-center text-[10px] text-slate-500">Upload all required files first, then submit them together for CA review.</p>
       </div>
 
       {/* Filing Status Timeline */}
