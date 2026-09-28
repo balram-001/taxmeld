@@ -219,7 +219,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
 
     setSavingClient(true);
     try {
-      await API.post('/clients', {
+      const createResponse = await API.post('/clients', {
         name: formData.name,
         panNumber: formData.panNumber,
         email: formData.email,
@@ -230,6 +230,11 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
       setIsModalOpen(false);
       setFormData({ name: '', panNumber: '', email: '', phone: '', services: [] });
       setCustomReqs([]);
+      if (createResponse.data?.emailDeliveryFailed) {
+        showToast('Client was created, but the portal email could not be sent. Check Brevo delivery logs.', 'error');
+      } else if (formData.email.trim()) {
+        showToast('Client created and portal email request accepted.', 'success');
+      }
       fetchClientsAndProfile();
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.response?.data?.message || 'We could not create this client. Please check the details and try again.';

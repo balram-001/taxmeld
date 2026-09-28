@@ -75,6 +75,7 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
     });
 
     // Send the client their upload and tracking link after the client record is saved.
+    let emailDeliveryFailed = false;
     if (email) {
       const frontendBaseUrl = process.env.CLIENT_BASE_URL || 'https://taxmeld.vercel.app';
       const trackingUrl = `${frontendBaseUrl}/track/${trackingToken}`;
@@ -84,17 +85,24 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
       ];
       const ca = await User.findById(workspaceOwnerId).select('name').lean();
 
-      void sendClientWelcomeEmail(
-        email,
-        name,
-        panNumber.toUpperCase().trim(),
-        trackingUrl,
-        requirements,
-        ca?.name
-      ).catch((err) => console.error('Background welcome email error:', err));
+      try {
+        // Await this before returning: Vercel may stop background work after
+        // a serverless response, which can silently drop a welcome email.
+        await sendClientWelcomeEmail(
+          email,
+          name,
+          panNumber.toUpperCase().trim(),
+          trackingUrl,
+          requirements,
+          ca?.name
+        );
+      } catch (err) {
+        emailDeliveryFailed = true;
+        console.error('Client welcome email error:', err);
+      }
     }
 
-    res.status(201).json(client);
+    res.status(201).json({ ...client.toObject(), emailDeliveryFailed });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error creating client' });
   }

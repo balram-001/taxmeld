@@ -64,11 +64,15 @@ const updateStage2Status = async (clientId: any, trackingToken: string) => {
   const uploadedCount = allExpectedCategories.filter((cat) => uploadedCategories.has(cat)).length;
   const totalCount = allExpectedCategories.length;
 
+  // The request is completed when the CA creates the client and shares the
+  // secure portal. Uploading is a separate client action.
+  await DocumentTask.findOneAndUpdate(
+    { clientId: client._id, title: 'Documents Requested' },
+    { status: 'Completed', remarks: 'Secure document request shared with client' }
+  );
+
+  const clientHasSubmitted = Boolean(client.lastClientUploadAt);
   if (uploadedCount === 0) {
-    await DocumentTask.findOneAndUpdate(
-      { clientId: client._id, title: 'Documents Requested' },
-      { status: 'Pending', remarks: 'PAN & Form 16 requested' }
-    );
 
     await DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Documents Uploaded' },
@@ -79,30 +83,22 @@ const updateStage2Status = async (clientId: any, trackingToken: string) => {
       { clientId: client._id, title: 'Computation & Calculation', status: 'In Progress' },
       { status: 'Pending' }
     );
-  } else if (uploadedCount < totalCount) {
-    await DocumentTask.findOneAndUpdate(
-      { clientId: client._id, title: 'Documents Requested' },
-      { status: 'Completed' }
-    );
-
+  } else if (!clientHasSubmitted || uploadedCount < totalCount) {
     await DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Documents Uploaded' },
       { 
         status: 'In Progress', 
-        remarks: `Partially Uploaded (${uploadedCount}/${totalCount} Requirements Submitted)` 
+        remarks: clientHasSubmitted
+          ? `Partially submitted (${uploadedCount}/${totalCount} requirements received)`
+          : `Files uploaded (${uploadedCount}/${totalCount}) — awaiting client submission`
       }
     );
 
     await DocumentTask.findOneAndUpdate(
-      { clientId: client._id, title: 'Computation & Calculation', status: 'Pending' },
-      { status: 'In Progress' }
+      { clientId: client._id, title: 'Computation & Calculation' },
+      { status: clientHasSubmitted ? 'In Progress' : 'Pending' }
     );
   } else {
-    await DocumentTask.findOneAndUpdate(
-      { clientId: client._id, title: 'Documents Requested' },
-      { status: 'Completed' }
-    );
-
     await DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Documents Uploaded' },
       { 
@@ -150,8 +146,8 @@ export const getPublicTasks = async (req: Request, res: Response): Promise<void>
             clientId: client._id,
             caId: client.userId,
             token: token,
-            status: 'Pending',
-            remarks: stage.remarks,
+            status: stage.title === 'Documents Requested' ? 'Completed' : 'Pending',
+            remarks: stage.title === 'Documents Requested' ? 'Secure document request shared with client' : stage.remarks,
             files: [],
           });
         } catch (err) {
@@ -235,6 +231,10 @@ export const uploadClientDocument = async (req: Request, res: Response): Promise
     docTask.status = 'Completed';
     await docTask.save();
 
+    // A newly added file must be explicitly submitted again by the client.
+    client.lastClientUploadAt = undefined;
+    await client.save();
+
     await updateStage2Status(client._id, token);
 
     res.status(200).json({ message: 'Files uploaded successfully', uploadedCount: files.length });
@@ -259,6 +259,7 @@ export const submitClientDocuments = async (req: Request, res: Response): Promis
     }
     client.lastClientUploadAt = new Date();
     await client.save();
+    await updateStage2Status(client._id, token);
     res.status(200).json({ message: 'Documents submitted to your CA successfully.' });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Could not submit documents.' });

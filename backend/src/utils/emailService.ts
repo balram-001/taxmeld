@@ -70,6 +70,7 @@ export const sendClientWelcomeEmail = async (
     console.log(`Welcome email sent to ${toEmail}`);
   } catch (err) {
     console.error('Failed to send welcome email:', err);
+    throw err;
   }
 };
 
