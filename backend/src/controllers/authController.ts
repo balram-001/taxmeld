@@ -251,7 +251,7 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     const user = await User.findById(userId).select(
-      'name email trialEndsAt subscriptionStatus planType isVerified createdAt'
+      'name email trialEndsAt subscriptionStatus planType isVerified createdAt role workspaceOwnerId'
     );
 
     if (!user) {
@@ -259,22 +259,24 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
+    const workspaceOwner = user.workspaceOwnerId ? await User.findById(user.workspaceOwnerId).select('trialEndsAt subscriptionStatus planType') : user;
     if (
-      user.subscriptionStatus === 'trial' &&
-      user.trialEndsAt &&
-      new Date() > user.trialEndsAt
+      workspaceOwner?.subscriptionStatus === 'trial' &&
+      workspaceOwner?.trialEndsAt &&
+      new Date() > workspaceOwner.trialEndsAt
     ) {
-      user.subscriptionStatus = 'expired';
-      await user.save();
+      workspaceOwner.subscriptionStatus = 'expired';
+      await workspaceOwner.save();
     }
 
     res.status(200).json({
       id: user._id,
       name: user.name,
       email: user.email,
-      trialEndsAt: user.trialEndsAt,
-      subscriptionStatus: user.subscriptionStatus,
-      planType: user.planType,
+      trialEndsAt: workspaceOwner?.trialEndsAt,
+      subscriptionStatus: workspaceOwner?.subscriptionStatus,
+      planType: workspaceOwner?.planType,
+      role: user.role || 'owner',
       createdAt: user.createdAt,
     });
   } catch (error: any) {
@@ -288,6 +290,12 @@ export const deleteAccount = async (req: AuthRequest, res: Response): Promise<vo
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ message: 'Not authorized.' });
+      return;
+    }
+
+    const user = await User.findById(userId).select('role');
+    if (user?.role === 'staff') {
+      res.status(403).json({ message: 'Team staff cannot delete the CA owner account.' });
       return;
     }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BellRing, LogOut, Trash2, CreditCard } from 'lucide-react';
+import { BellRing, LogOut, Trash2, CreditCard, Users } from 'lucide-react';
 
 interface NavigationBarProps {
   isAuthenticated: boolean;
@@ -13,10 +13,12 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
 
   const userStr = localStorage.getItem('user');
   let userEmail = "ca@taxmeld.com";
+  let isStaff = false;
   try {
     if (userStr) {
       const parsed = JSON.parse(userStr);
       userEmail = parsed.email || parsed.username || "ca@taxmeld.com";
+      isStaff = parsed.role === 'staff';
     }
   } catch (e) {
     userEmail = "ca@taxmeld.com";
@@ -46,7 +48,7 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
                   <p className="text-xs font-bold text-slate-800 truncate">{userEmail}</p>
                 </div>
 
-                {/* Subscription & Pricing Link */}
+                {!isStaff && <>
                 <Link
                   to="/pricing"
                   onClick={() => setDropdownOpen(false)}
@@ -54,6 +56,8 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
                 >
                   <CreditCard size={14} className="text-indigo-500" /> Subscription & Pricing
                 </Link>
+                <Link to="/team" onClick={() => setDropdownOpen(false)} className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer transition"><Users size={14} className="text-emerald-600" /> Team staff</Link>
+                </>}
                 <Link
                   to="/activity"
                   onClick={() => setDropdownOpen(false)}
@@ -71,7 +75,7 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
                 >
                   <LogOut size= {14} className="text-slate-500" /> Logout
                 </button>
-                <button
+                {!isStaff && <button
                   onClick={() => {
                     setDropdownOpen(false);
                     onDeleteAccount();
@@ -79,7 +83,7 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer transition border-t border-slate-100"
                 >
                   <Trash2 size={14} className="text-rose-500" /> Delete Account
-                </button>
+                </button>}
               </div>
             )}
           </div>

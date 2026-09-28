@@ -419,6 +419,14 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
             {userData?.subscriptionStatus === 'trial' && <span className="border-l border-emerald-200 pl-2 text-[10px] font-semibold text-emerald-700">{clients.length}/20 trial limit used</span>}
           </div>
         </div>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {!isDemo && userData?.role !== 'staff' && <button
+            type="button"
+            onClick={() => navigate('/team')}
+            className="w-full sm:w-auto border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-800 font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
+          >
+            <Users size={17} /> Team Staff
+          </button>}
         <button
           onClick={() => {
             if (isDemo && clients.length >= 1) {
@@ -439,6 +447,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         >
           <Plus size={18} /> Add New Client
         </button>
+        </div>
       </div>
 
       <div className="relative">

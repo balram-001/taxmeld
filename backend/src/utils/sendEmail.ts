@@ -7,7 +7,7 @@ const brevoApiKey = process.env.BREVO_API_KEY?.trim();
 
 const getEmailConfig = () => {
   if (!emailUser || !brevoApiKey) {
-    throw new Error('Email is not configured. Set EMAIL_USER and BREVO_API_KEY in Render.');
+    throw new Error('Email is not configured. Set EMAIL_USER and BREVO_API_KEY in the backend deployment environment.');
   }
 
   return { senderEmail: emailUser, apiKey: brevoApiKey };
@@ -80,6 +80,11 @@ export const sendOtpEmail = async (toEmail: string, otp: string): Promise<void> 
     console.error('OTP email delivery failed:', error?.message || error);
     throw new Error('Unable to send the OTP email. Please try again later.');
   }
+};
+
+export const sendTeamInviteEmail = async (toEmail: string, ownerName: string, inviteUrl: string): Promise<void> => {
+  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:14px"><h2 style="color:#059669">You've been invited to a TaxMeld team</h2><p style="color:#475569">${ownerName} has added you as a staff member. Use the secure link below and verify the OTP sent to this email to open the shared CA workspace.</p><p style="text-align:center;margin:28px 0"><a href="${inviteUrl}" style="display:inline-block;background:#059669;color:#fff;padding:13px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Open Team Workspace</a></p><p style="font-size:12px;color:#64748b">This invitation is for ${toEmail}. Do not forward this link.</p></div>`;
+  await sendTransactionalEmail(toEmail, `Join ${ownerName}'s TaxMeld team`, html, 'TaxMeld Team');
 };
 
 // 2. Client Creation Alert Mail

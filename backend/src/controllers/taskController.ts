@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { sendFinalAckEmail } from '../utils/emailService';
 import cloudinary, { isCloudinaryConfigured } from '../config/cloudinary';
+import { getWorkspaceOwnerId } from '../utils/workspace';
 
 type CloudFilePayload = { fileUrl: string; publicId: string; originalFileName: string; mimeType?: string };
 
@@ -27,7 +28,8 @@ export const createClientUploadSignature = async (req: Request, res: Response): 
 };
 
 export const createCAUploadSignature = async (req: AuthRequest, res: Response): Promise<void> => {
-  const client = await Client.findOne({ _id: req.params.clientId, userId: req.user?.id || req.user?._id });
+  const workspaceOwnerId = req.user?.id ? await getWorkspaceOwnerId(req.user.id) : null;
+  const client = workspaceOwnerId ? await Client.findOne({ _id: req.params.clientId, userId: workspaceOwnerId }) : null;
   if (!client || !isCloudinaryConfigured) {
     res.status(400).json({ message: 'Secure upload is temporarily unavailable.' });
     return;
@@ -317,7 +319,8 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
       return;
     }
 
-    const client = await Client.findById(clientId);
+    const workspaceOwnerId = req.user?.id ? await getWorkspaceOwnerId(req.user.id) : null;
+    const client = workspaceOwnerId ? await Client.findOne({ _id: clientId, userId: workspaceOwnerId }) : null;
     if (!client) {
       res.status(404).json({ message: 'Client not found' });
       return;
@@ -427,6 +430,13 @@ export const updateTaskStatus = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
+    const workspaceOwnerId = req.user?.id ? await getWorkspaceOwnerId(req.user.id) : null;
+    const client = workspaceOwnerId ? await Client.findOne({ _id: task.clientId, userId: workspaceOwnerId }) : null;
+    if (!client) {
+      res.status(403).json({ message: 'You do not have access to this workflow.' });
+      return;
+    }
+
     if (status) task.status = status;
     if (remarks !== undefined) task.remarks = remarks;
 
@@ -455,7 +465,6 @@ export const downloadClientFile = async (req: Request, res: Response): Promise<v
       res.status(404).json({ message: 'This document is no longer available.' });
       return;
     }
-
     if (file.fileUrl.startsWith('http')) {
       res.redirect(file.fileUrl);
       return;

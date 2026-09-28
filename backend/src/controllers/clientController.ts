@@ -5,6 +5,7 @@ import { DocumentTask } from '../models/DocumentTask';
 import { User } from '../models/User';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { sendClientWelcomeEmail } from '../utils/emailService';
+import { getWorkspaceOwnerId } from '../utils/workspace';
 
 export const createClient = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -24,7 +25,9 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     // --- TRIAL & 20-CLIENT LIMIT VALIDATION ---
-    const user = await User.findById(userId);
+    const workspaceOwnerId = await getWorkspaceOwnerId(String(userId));
+    if (!workspaceOwnerId) { res.status(401).json({ message: 'Workspace access is unavailable.' }); return; }
+    const user = await User.findById(workspaceOwnerId);
     if (!user) {
       res.status(404).json({ message: 'User not found' });
       return;
@@ -47,7 +50,7 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
 
     // Check if client count has reached the 20 limit during trial
     if (user.subscriptionStatus === 'trial') {
-      const currentClientCount = await Client.countDocuments({ userId });
+      const currentClientCount = await Client.countDocuments({ userId: workspaceOwnerId });
       if (currentClientCount >= 20) {
         res.status(403).json({ 
           message: 'Trial limit reached! You can add up to 20 clients during your 14-day free trial. Please upgrade to add more.' 
@@ -67,7 +70,7 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
       whatsappNumber: phone,
       serviceType: serviceType !== undefined ? serviceType : '',
       customRequirements: Array.isArray(customRequirements) ? customRequirements : [],
-      userId: userId,
+      userId: workspaceOwnerId,
       trackingToken,
     });
 
@@ -79,7 +82,7 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
         ...(serviceType ? serviceType.split(', ').filter(Boolean) : []),
         ...(Array.isArray(customRequirements) ? customRequirements.map((requirement: any) => requirement.name) : []),
       ];
-      const ca = await User.findById(userId).select('name').lean();
+      const ca = await User.findById(workspaceOwnerId).select('name').lean();
 
       void sendClientWelcomeEmail(
         email,
@@ -106,7 +109,9 @@ export const getClients = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const clients = await Client.find({ userId: userId }).sort({ createdAt: -1 });
+    const workspaceOwnerId = await getWorkspaceOwnerId(String(userId));
+    if (!workspaceOwnerId) { res.status(401).json({ message: 'Workspace access is unavailable.' }); return; }
+    const clients = await Client.find({ userId: workspaceOwnerId }).sort({ createdAt: -1 });
     res.status(200).json(clients);
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to fetch clients', error: error.message });
@@ -125,7 +130,8 @@ export const getClientById = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const client = await Client.findOne({ _id: clientId, userId });
+    const workspaceOwnerId = await getWorkspaceOwnerId(String(userId));
+    const client = workspaceOwnerId ? await Client.findOne({ _id: clientId, userId: workspaceOwnerId }) : null;
     if (!client) {
       res.status(404).json({ message: 'Client not found or unauthorized' });
       return;
@@ -148,7 +154,8 @@ export const deleteClient = async (req: AuthRequest, res: Response): Promise<voi
     const clientId = req.params.id;
     const userId = req.user?.id || req.user?._id;
 
-    const client = await Client.findOne({ _id: clientId, userId: userId });
+    const workspaceOwnerId = userId ? await getWorkspaceOwnerId(String(userId)) : null;
+    const client = workspaceOwnerId ? await Client.findOne({ _id: clientId, userId: workspaceOwnerId }) : null;
     if (!client) {
       res.status(404).json({ message: 'Client not found or unauthorized' });
       return;

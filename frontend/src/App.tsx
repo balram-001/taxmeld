@@ -15,6 +15,9 @@ import Pricing from './pages/Pricing';
 import Payment from './pages/Payment';
 import ClientDetail from './pages/ClientDetail';
 import ClientActivity from './pages/ClientActivity';
+import Team from './pages/Team';
+import TeamAccess from './pages/TeamAccess';
+import TeamLogin from './pages/TeamLogin';
 import API from './api';
 
 function ClientUploadNotifications({ enabled }: { enabled: boolean }) {
@@ -222,6 +225,9 @@ export default function App() {
             <Route path="/" element={isAuthenticated ? <Dashboard /> : isDemoMode ? <Dashboard isDemo onDemoLimit={() => setShowDemoUpgrade(true)} /> : <LandingPage />} />
             <Route path="/client/:id" element={<ClientDetail />} />
             <Route path="/activity" element={<ClientActivity />} />
+            <Route path="/team" element={<Team />} />
+            <Route path="/team-access" element={<TeamAccess onLogin={() => setIsAuthenticated(true)} />} />
+            <Route path="/team-login" element={<TeamLogin onLogin={() => setIsAuthenticated(true)} />} />
           </Routes>
         </main>
       </div>

@@ -18,6 +18,8 @@ const userSchema = new Schema(
       default: 'trial' 
     },
     planType: { type: String, default: 'free_trial' },
+    role: { type: String, enum: ['owner', 'staff'], default: 'owner' },
+    workspaceOwnerId: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     
     // New Fields for MacroDroid Payment Tracking
     utrNumber: { type: String, default: null },

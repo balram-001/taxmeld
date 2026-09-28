@@ -119,6 +119,9 @@ export default function Login({ onLogin }: LoginProps) {
             Create an Account
           </Link>
         </p>
+        <Link to="/team-login" className="mt-3 block text-center text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+          Team staff? Sign in securely with email OTP
+        </Link>
       </div>
     </div>
   );
