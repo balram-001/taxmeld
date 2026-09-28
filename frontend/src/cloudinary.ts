@@ -5,6 +5,15 @@ export type UploadedCloudFile = { fileUrl: string; publicId: string; originalFil
 
 export const resolveFileUrl = (fileUrl: string) => fileUrl.startsWith('http') ? fileUrl : `${BACKEND_URL}${fileUrl}`;
 
+// Cloudinary normally opens a document in the browser. Its attachment flag
+// forces a direct file save when the CA chooses Download.
+export const resolveDownloadFileUrl = (fileUrl: string) => {
+  const resolvedUrl = resolveFileUrl(fileUrl);
+  return resolvedUrl.includes('res.cloudinary.com') && resolvedUrl.includes('/upload/')
+    ? resolvedUrl.replace('/upload/', '/upload/fl_attachment/')
+    : resolvedUrl;
+};
+
 export async function uploadFilesDirectly(files: File[], signaturePath: string): Promise<UploadedCloudFile[]> {
   const signature = (await API.post(signaturePath)).data;
   return Promise.all(files.map(async (file) => {
