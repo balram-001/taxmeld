@@ -5,7 +5,7 @@ import { resolveFileUrl, uploadFilesDirectly } from '../cloudinary';
 import { BACKEND_URL } from '../config';
 import { useToast } from '../toast';
 import { 
-  Loader2, Upload, FileText, ArrowLeft, Eye, Download, Trash2, CheckCheck, X, Plus 
+  Loader2, Upload, FileText, ArrowLeft, Eye, Download, Trash2, CheckCheck, X, Plus, ShieldCheck
 } from 'lucide-react';
 
 const AVAILABLE_SERVICES = [
@@ -24,6 +24,11 @@ export default function ClientTracker() {
   const [uploadingStatus, setUploadingStatus] = useState<{ category: string; count: number } | null>(null);
   const [submittingDocuments, setSubmittingDocuments] = useState(false);
   const [documentsSubmitted, setDocumentsSubmitted] = useState(false);
+  const storageKey = `taxmeld_portal_access_${token}`;
+  const [portalAccess, setPortalAccess] = useState(() => sessionStorage.getItem(`taxmeld_portal_access_${token}`) || '');
+  const [accessForm, setAccessForm] = useState({ name: '', panNumber: '', phone: '' });
+  const [verifyingAccess, setVerifyingAccess] = useState(false);
+  const [accessError, setAccessError] = useState('');
 
   // Additional custom slots added by client/user
   const [extraCustomReqs, setExtraCustomReqs] = useState<{ name: string; hint: string }[]>([]);
@@ -34,9 +39,11 @@ export default function ClientTracker() {
   const [viewDocOpen, setViewDocOpen] = useState(false);
   const [previewTargetDoc, setPreviewTargetDoc] = useState<any>(null);
 
+  const portalHeaders = portalAccess ? { 'x-client-portal-access': portalAccess } : undefined;
   const fetchStatus = async () => {
+    if (!portalAccess) { setLoading(false); return; }
     try {
-      const res = await API.get(`/tasks/public/${token}`);
+      const res = await API.get(`/tasks/public/${token}`, { headers: portalHeaders });
       setData(res.data);
       setDocumentsSubmitted(Boolean(res.data?.client?.lastClientUploadAt));
     } catch (err) {
@@ -48,7 +55,19 @@ export default function ClientTracker() {
 
   useEffect(() => {
     fetchStatus();
-  }, [token]);
+  }, [token, portalAccess]);
+
+  const verifyPortalAccess = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAccessError(''); setVerifyingAccess(true);
+    try {
+      const response = await API.post(`/tasks/access/${token}/verify`, accessForm);
+      sessionStorage.setItem(storageKey, response.data.accessToken);
+      setPortalAccess(response.data.accessToken);
+      setLoading(true);
+    } catch (error: any) { setAccessError(error.response?.data?.message || 'Could not verify your details.'); }
+    finally { setVerifyingAccess(false); }
+  };
 
   const finalAckTask = data?.tasks?.find(
     (t: any) => (t.title === 'Acknowledgement Generated' || t.documentType === 'ITR Acknowledgement') && t.files?.length > 0
@@ -60,8 +79,8 @@ export default function ClientTracker() {
 
     setUploadingStatus({ category, count: filesList.length });
     try {
-      const files = await uploadFilesDirectly(Array.from(filesList), `/tasks/upload-signature/${token}`);
-      await API.post(`/tasks/upload/${token}`, { serviceCategory: category, files });
+      const files = await uploadFilesDirectly(Array.from(filesList), `/tasks/upload-signature/${token}`, portalHeaders);
+      await API.post(`/tasks/upload/${token}`, { serviceCategory: category, files }, { headers: portalHeaders });
       // A new file means the client may submit a fresh update to the CA.
       setDocumentsSubmitted(false);
       // The file is saved now. Refresh the status in the background instead
@@ -77,7 +96,7 @@ export default function ClientTracker() {
 
   const handleDeleteFile = async (taskId: string, fileIndex: number) => {
     try {
-      await API.delete(`/tasks/upload/${token}/file/${taskId}/${fileIndex}`);
+      await API.delete(`/tasks/upload/${token}/file/${taskId}/${fileIndex}`, { headers: portalHeaders });
       await fetchStatus();
     } catch (err: any) {
       showToast('That document is no longer available. Refresh the page and try again.', 'error');
@@ -88,7 +107,7 @@ export default function ClientTracker() {
     if (submittingDocuments) return;
     setSubmittingDocuments(true);
     try {
-      await API.post(`/tasks/submit/${token}`);
+      await API.post(`/tasks/submit/${token}`, {}, { headers: portalHeaders });
       setDocumentsSubmitted(true);
       showToast('Documents submitted to your CA successfully.', 'success');
       void fetchStatus();
@@ -107,6 +126,10 @@ export default function ClientTracker() {
     setNewDocHint('');
     setShowAddModal(false);
   };
+
+  if (!portalAccess) {
+    return <div className="min-h-[80vh] flex items-center justify-center p-4"><form onSubmit={verifyPortalAccess} className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4"><div className="text-center"><div className="mx-auto inline-flex rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-emerald-600"><ShieldCheck size={28} /></div><h1 className="mt-3 text-xl font-extrabold text-slate-900">Verify secure client portal</h1><p className="mt-2 text-xs leading-5 text-slate-500">Enter the same details you shared with your CA to upload documents and track your filing.</p></div>{accessError && <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">{accessError}</p>}<input required value={accessForm.name} onChange={(event) => setAccessForm({ ...accessForm, name: event.target.value })} placeholder="Full name" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-emerald-600" /><input required maxLength={10} value={accessForm.panNumber} onChange={(event) => setAccessForm({ ...accessForm, panNumber: event.target.value.toUpperCase() })} placeholder="PAN number" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-sm uppercase outline-none focus:border-emerald-600" /><input required inputMode="numeric" maxLength={10} value={accessForm.phone} onChange={(event) => setAccessForm({ ...accessForm, phone: event.target.value.replace(/\D/g, '') })} placeholder="Mobile number" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-emerald-600" /><button disabled={verifyingAccess} className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300">{verifyingAccess ? 'Verifying...' : 'Verify & open portal'}</button></form></div>;
+  }
 
   if (loading) {
     return (
@@ -233,7 +256,7 @@ export default function ClientTracker() {
               {(finalAckTask.files || []).map((file: any, index: number) => (
                 <a
                   key={`${file.fileUrl}-${index}`}
-                  href={`${BACKEND_URL}/api/tasks/download/${token}/${finalAckTask._id}/${index}`}
+                  href={`${BACKEND_URL}/api/tasks/download/${token}/${finalAckTask._id}/${index}?access=${encodeURIComponent(portalAccess)}`}
                   download={file.originalFileName || 'Final_Document.pdf'}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-800 font-bold text-xs rounded-lg shadow-sm hover:bg-emerald-50 transition cursor-pointer"
                 >

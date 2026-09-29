@@ -34,39 +34,28 @@ export const sendClientWelcomeEmail = async (
 ) => {
   if (!toEmail) return;
 
-  const docsListHtml = requiredServices.length > 0
-    ? `<ul>${requiredServices.map((s) => `<li><strong>${s}</strong></li>`).join('')}</ul>`
-    : '<p>Standard verification documents required.</p>';
-
   const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-        <h2 style="color: #059669; margin-bottom: 8px;">Welcome, ${clientName}</h2>
+        <h2 style="color: #059669; margin-bottom: 8px;">Your secure document portal is ready</h2>
         <p style="color: #475569; font-size: 14px;">
-          Your secure TaxMeld portal is ready. Please use it to upload the requested documents and track your filing progress.
+          Your CA has shared a secure TaxMeld portal for document upload and filing updates.
         </p>
-
-        <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-          <p style="margin: 0; font-size: 13px; color: #334155;"><strong>PAN Number:</strong> ${panNumber}</p>
-          <p style="margin: 8px 0 4px 0; font-size: 13px; color: #334155;"><strong>Required Documents:</strong></p>
-          ${docsListHtml}
-        </div>
 
         <div style="text-align: center; margin: 25px 0;">
           <a href="${trackingUrl}" style="background-color: #059669; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block;">
-            Upload Documents & Track Status
+            Open Secure Portal
           </a>
         </div>
 
-        <p style="color: #94a3b8; font-size: 12px; margin-top: 20px;">
-          If the button does not open, copy and paste this link into your browser:<br/>
-          <a href="${trackingUrl}" style="color: #059669;">${trackingUrl}</a>
+        <p style="color: #64748b; font-size: 12px; margin-top: 20px;">
+          For your protection, the portal will verify your name, PAN and mobile number before showing any filing details.
         </p>
         <p style="color: #475569; font-size: 13px;">Regards,<br/><strong>${caName || 'Your CA'}</strong><br/>TaxMeld CA Portal</p>
       </div>
     `;
 
   try {
-    await sendTransactionalEmail(toEmail, `Document Request & Tax Filing Tracker - ${panNumber}`, html, `${caName || 'TaxMeld'} | CA Portal`);
+    await sendTransactionalEmail(toEmail, 'Your secure TaxMeld document portal', html, `${caName || 'TaxMeld'} | CA Portal`);
     console.log(`Welcome email sent to ${toEmail}`);
   } catch (err) {
     console.error('Failed to send welcome email:', err);

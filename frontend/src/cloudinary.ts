@@ -14,8 +14,8 @@ export const resolveDownloadFileUrl = (fileUrl: string) => {
     : resolvedUrl;
 };
 
-export async function uploadFilesDirectly(files: File[], signaturePath: string): Promise<UploadedCloudFile[]> {
-  const signature = (await API.post(signaturePath)).data;
+export async function uploadFilesDirectly(files: File[], signaturePath: string, headers?: Record<string, string>): Promise<UploadedCloudFile[]> {
+  const signature = (await API.post(signaturePath, {}, { headers })).data;
   return Promise.all(files.map(async (file) => {
     const body = new FormData();
     body.append('file', file);

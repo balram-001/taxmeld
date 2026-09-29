@@ -10,19 +10,22 @@ import {
   createClientUploadSignature,
   createCAUploadSignature,
   submitClientDocuments,
+  verifyClientPortal,
 } from '../controllers/taskController';
-import { protect } from '../middleware/authMiddleware';
+import { protect, protectClientPortal } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-// Public Tracking & Client File Upload Routes
-router.get('/public/:token', getPublicTasks);
-router.post('/upload-signature/:token', createClientUploadSignature);
-router.post('/upload/:token', uploadClientDocument);
-router.post('/submit/:token', submitClientDocuments);
-router.delete('/upload/:token/file/:taskId/:fileIndex', deleteClientDocumentFile);
-router.get('/download/:token/:taskId/:fileIndex', downloadClientFile);
-router.get('/file/:token/:taskId/:fileId', getStoredFile);
+// A link opens a details-verification screen; all portal data requires the
+// short-lived session issued by this endpoint.
+router.post('/access/:token/verify', verifyClientPortal);
+router.get('/public/:token', protectClientPortal, getPublicTasks);
+router.post('/upload-signature/:token', protectClientPortal, createClientUploadSignature);
+router.post('/upload/:token', protectClientPortal, uploadClientDocument);
+router.post('/submit/:token', protectClientPortal, submitClientDocuments);
+router.delete('/upload/:token/file/:taskId/:fileIndex', protectClientPortal, deleteClientDocumentFile);
+router.get('/download/:token/:taskId/:fileIndex', protectClientPortal, downloadClientFile);
+router.get('/file/:token/:taskId/:fileId', protectClientPortal, getStoredFile);
 
 // CA Dashboard Routes
 router.post('/ca-upload-signature/:clientId', protect, createCAUploadSignature);

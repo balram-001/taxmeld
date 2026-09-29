@@ -9,12 +9,31 @@ import path from 'path';
 import { sendFinalAckEmail } from '../utils/emailService';
 import cloudinary, { isCloudinaryConfigured } from '../config/cloudinary';
 import { getWorkspaceOwnerId } from '../utils/workspace';
+import jwt from 'jsonwebtoken';
 
 type CloudFilePayload = { fileUrl: string; publicId: string; originalFileName: string; mimeType?: string };
 
 const readCloudFiles = (value: unknown): CloudFilePayload[] => Array.isArray(value)
   ? value.filter((file: any) => file?.fileUrl && file?.publicId && file?.originalFileName)
   : [];
+
+export const verifyClientPortal = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const client = await Client.findOne({ trackingToken: req.params.token });
+    const name = String(req.body.name || '').trim().toLowerCase();
+    const panNumber = String(req.body.panNumber || '').trim().toUpperCase();
+    const phone = String(req.body.phone || '').replace(/\D/g, '').slice(-10);
+    const savedPhone = String(client?.phone || client?.whatsappNumber || '').replace(/\D/g, '').slice(-10);
+    if (!client || !name || !panNumber || !phone || client.name.trim().toLowerCase() !== name || client.panNumber !== panNumber || savedPhone !== phone) {
+      res.status(401).json({ message: 'The details do not match this secure portal. Please check with your CA.' });
+      return;
+    }
+    const accessToken = jwt.sign({ type: 'client_portal', trackingToken: client.trackingToken }, process.env.JWT_SECRET as string, { expiresIn: '24h' });
+    res.json({ accessToken });
+  } catch {
+    res.status(500).json({ message: 'Could not verify portal access.' });
+  }
+};
 
 export const createClientUploadSignature = async (req: Request, res: Response): Promise<void> => {
   const client = await Client.findOne({ trackingToken: req.params.token });

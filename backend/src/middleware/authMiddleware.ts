@@ -44,3 +44,27 @@ export const protect = (req: AuthRequest, res: Response, next: NextFunction): vo
     return;
   }
 };
+
+// Client portals use a separate, short-lived session created only after the
+// client verifies the name, PAN and mobile number recorded by the CA.
+export const protectClientPortal = (req: Request, res: Response, next: NextFunction): void => {
+  // The CA/staff workspace already carries its normal authenticated session.
+  // It may open a client's workflow without going through client verification.
+  const bearer = req.headers.authorization;
+  if (bearer?.startsWith('Bearer ')) {
+    try {
+      const decoded: any = jwt.verify(bearer.split(' ')[1], process.env.JWT_SECRET as string);
+      if (decoded.id || decoded._id || decoded.userId) { next(); return; }
+    } catch {
+      // Fall through to the client-portal session check below.
+    }
+  }
+  const accessToken = String(req.headers['x-client-portal-access'] || req.query.access || '');
+  try {
+    const decoded: any = jwt.verify(accessToken, process.env.JWT_SECRET as string);
+    if (decoded.type !== 'client_portal' || decoded.trackingToken !== req.params.token) throw new Error('Invalid portal session');
+    next();
+  } catch {
+    res.status(401).json({ message: 'Please verify your client details to open this secure portal.' });
+  }
+};
