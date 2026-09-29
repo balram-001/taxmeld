@@ -64,7 +64,6 @@ const updateStage2Status = async (clientId: any, trackingToken: string) => {
   const uploadedCount = allExpectedCategories.filter((cat) => uploadedCategories.has(cat)).length;
   const totalCount = allExpectedCategories.length;
 
-  const clientHasSubmitted = Boolean(client.lastClientUploadAt);
   const updates: Promise<unknown>[] = [
     // The request is completed when the CA creates the client and shares the
     // secure portal. Uploading is a separate client action.
@@ -84,32 +83,22 @@ const updateStage2Status = async (clientId: any, trackingToken: string) => {
       { clientId: client._id, title: 'Computation & Calculation', status: 'In Progress' },
       { status: 'Pending' }
     ));
-  } else if (!clientHasSubmitted || uploadedCount < totalCount) {
+  } else {
+    // A document has been physically uploaded, so this stage is complete.
+    // The separate Submit button is retained only as a notification action
+    // for the CA; it must not keep the upload stage pending.
     updates.push(DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Documents Uploaded' },
-      { 
-        status: 'In Progress', 
-        remarks: clientHasSubmitted
-          ? `Partially submitted (${uploadedCount}/${totalCount} requirements received)`
-          : `Files uploaded (${uploadedCount}/${totalCount}) — awaiting client submission`
+      {
+        status: 'Completed',
+        remarks: uploadedCount < totalCount
+          ? `Client documents uploaded (${uploadedCount}/${totalCount} requirements received)`
+          : `Client documents uploaded (${totalCount}/${totalCount} requirements received)`
       }
     ));
 
     updates.push(DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Computation & Calculation' },
-      { status: clientHasSubmitted ? 'In Progress' : 'Pending' }
-    ));
-  } else {
-    updates.push(DocumentTask.findOneAndUpdate(
-      { clientId: client._id, title: 'Documents Uploaded' },
-      { 
-        status: 'Completed', 
-        remarks: `All Documents Submitted (${totalCount}/${totalCount} Completed)` 
-      }
-    ));
-
-    updates.push(DocumentTask.findOneAndUpdate(
-      { clientId: client._id, title: 'Computation & Calculation', status: 'Pending' },
       { status: 'In Progress' }
     ));
   }
@@ -163,7 +152,10 @@ export const getPublicTasks = async (req: Request, res: Response): Promise<void>
     // Upload, delete, submit and final-delivery routes sync their own status.
     // Avoid three extra MongoDB writes on every portal refresh.
     const requestStageNeedsSync = existingTasks.some((task) => task.title === 'Documents Requested' && task.status !== 'Completed');
-    if (createdStandardStage || requestStageNeedsSync) await updateStage2Status(client._id, token);
+    const uploadedStage = existingTasks.find((task) => task.title === 'Documents Uploaded');
+    const hasAnyClientFile = existingTasks.some((task) => task.documentType === 'Client Document' && task.serviceCategory !== 'General' && task.files.length > 0);
+    const uploadStageNeedsSync = hasAnyClientFile && uploadedStage?.status !== 'Completed';
+    if (createdStandardStage || requestStageNeedsSync || uploadStageNeedsSync) await updateStage2Status(client._id, token);
 
     const allTasks = await DocumentTask.find({ clientId: client._id });
 
