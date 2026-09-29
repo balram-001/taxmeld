@@ -99,7 +99,8 @@ const ClientDetail: React.FC = () => {
       setFinalFiles([]);
       setReplacing(false);
       setAddingFiles(false);
-      await loadWorkflow(client.trackingToken);
+      // Refresh in the background; the final file is already safely saved.
+      void loadWorkflow(client.trackingToken);
       showToast(addingFiles ? 'Additional final documents uploaded successfully.' : 'Final document uploaded and client workflow completed.', 'success');
     } catch (error: any) {
       showToast(error.response?.data?.message || 'Could not upload the final document.', 'error');

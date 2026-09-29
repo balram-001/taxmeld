@@ -60,7 +60,10 @@ export default function ClientTracker() {
     try {
       const files = await uploadFilesDirectly(Array.from(filesList), `/tasks/upload-signature/${token}`);
       await API.post(`/tasks/upload/${token}`, { serviceCategory: category, files });
-      await fetchStatus();
+      // The file is saved now. Refresh the status in the background instead
+      // of keeping the Uploading button busy for another serverless request.
+      void fetchStatus();
+      showToast('Files uploaded. Review them, then submit to your CA.', 'success');
     } catch (err: any) {
       showToast(err.response?.data?.error || 'Upload failed. Please try again.', 'error');
     } finally {

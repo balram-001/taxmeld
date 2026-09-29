@@ -64,27 +64,28 @@ const updateStage2Status = async (clientId: any, trackingToken: string) => {
   const uploadedCount = allExpectedCategories.filter((cat) => uploadedCategories.has(cat)).length;
   const totalCount = allExpectedCategories.length;
 
-  // The request is completed when the CA creates the client and shares the
-  // secure portal. Uploading is a separate client action.
-  await DocumentTask.findOneAndUpdate(
-    { clientId: client._id, title: 'Documents Requested' },
-    { status: 'Completed', remarks: 'Secure document request shared with client' }
-  );
-
   const clientHasSubmitted = Boolean(client.lastClientUploadAt);
-  if (uploadedCount === 0) {
+  const updates: Promise<unknown>[] = [
+    // The request is completed when the CA creates the client and shares the
+    // secure portal. Uploading is a separate client action.
+    DocumentTask.findOneAndUpdate(
+      { clientId: client._id, title: 'Documents Requested' },
+      { status: 'Completed', remarks: 'Secure document request shared with client' }
+    )
+  ];
 
-    await DocumentTask.findOneAndUpdate(
+  if (uploadedCount === 0) {
+    updates.push(DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Documents Uploaded' },
       { status: 'Pending', remarks: 'Client file upload stage' }
-    );
+    ));
 
-    await DocumentTask.findOneAndUpdate(
+    updates.push(DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Computation & Calculation', status: 'In Progress' },
       { status: 'Pending' }
-    );
+    ));
   } else if (!clientHasSubmitted || uploadedCount < totalCount) {
-    await DocumentTask.findOneAndUpdate(
+    updates.push(DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Documents Uploaded' },
       { 
         status: 'In Progress', 
@@ -92,26 +93,27 @@ const updateStage2Status = async (clientId: any, trackingToken: string) => {
           ? `Partially submitted (${uploadedCount}/${totalCount} requirements received)`
           : `Files uploaded (${uploadedCount}/${totalCount}) — awaiting client submission`
       }
-    );
+    ));
 
-    await DocumentTask.findOneAndUpdate(
+    updates.push(DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Computation & Calculation' },
       { status: clientHasSubmitted ? 'In Progress' : 'Pending' }
-    );
+    ));
   } else {
-    await DocumentTask.findOneAndUpdate(
+    updates.push(DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Documents Uploaded' },
       { 
         status: 'Completed', 
         remarks: `All Documents Submitted (${totalCount}/${totalCount} Completed)` 
       }
-    );
+    ));
 
-    await DocumentTask.findOneAndUpdate(
+    updates.push(DocumentTask.findOneAndUpdate(
       { clientId: client._id, title: 'Computation & Calculation', status: 'Pending' },
       { status: 'In Progress' }
-    );
+    ));
   }
+  await Promise.all(updates);
 };
 
 // 1. Get Public Tasks for Client Tracking Page
@@ -135,6 +137,7 @@ export const getPublicTasks = async (req: Request, res: Response): Promise<void>
 
     const existingTasks = await DocumentTask.find({ clientId: client._id });
 
+    let createdStandardStage = false;
     for (const stage of standardStages) {
       const exists = existingTasks.find((t) => t.title === stage.title);
       if (!exists) {
@@ -150,14 +153,17 @@ export const getPublicTasks = async (req: Request, res: Response): Promise<void>
             remarks: stage.title === 'Documents Requested' ? 'Secure document request shared with client' : stage.remarks,
             files: [],
           });
+          createdStandardStage = true;
         } catch (err) {
           console.log(`Stage ${stage.title} creation fallback`);
         }
       }
     }
 
-    // Always sync timeline status on load
-    await updateStage2Status(client._id, token);
+    // Upload, delete, submit and final-delivery routes sync their own status.
+    // Avoid three extra MongoDB writes on every portal refresh.
+    const requestStageNeedsSync = existingTasks.some((task) => task.title === 'Documents Requested' && task.status !== 'Completed');
+    if (createdStandardStage || requestStageNeedsSync) await updateStage2Status(client._id, token);
 
     const allTasks = await DocumentTask.find({ clientId: client._id });
 
