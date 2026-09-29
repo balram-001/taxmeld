@@ -311,11 +311,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   );
   const ackFilesList = ackTask?.files || [];
   const ackFileItem = ackFilesList[0];
-  const clientsAwaitingReview = clients.filter((client) => {
-    if (!client.lastClientUploadAt) return false;
-    return !client.lastFinalDeliveryAt || new Date(client.lastClientUploadAt) > new Date(client.lastFinalDeliveryAt);
-  });
-
   if (pageLoading) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center gap-4">
@@ -465,19 +460,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
           className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm text-sm"
         />
       </div>
-
-      {clientsAwaitingReview.length > 0 && (
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-extrabold text-amber-900"><Clock size={17} /> New client document uploads</div>
-          <div className="mt-2 space-y-1.5">
-            {clientsAwaitingReview.map((client) => (
-              <button key={client._id} type="button" onClick={() => navigate(`/client/${client._id}`)} className="block w-full text-left text-xs text-amber-900 hover:underline cursor-pointer">
-                Client #{clients.findIndex((item) => item._id === client._id) + 1} — <strong>{client.name}</strong> · PAN {client.panNumber} · {client.phone || client.whatsappNumber || 'No phone number'} has uploaded documents. Review the client workspace.
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Desktop client list: one live row per client, with no action clutter. */}
       <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

@@ -23,6 +23,7 @@ export default function ClientTracker() {
   const [loading, setLoading] = useState(true);
   const [uploadingStatus, setUploadingStatus] = useState<{ category: string; count: number } | null>(null);
   const [submittingDocuments, setSubmittingDocuments] = useState(false);
+  const [documentsSubmitted, setDocumentsSubmitted] = useState(false);
 
   // Additional custom slots added by client/user
   const [extraCustomReqs, setExtraCustomReqs] = useState<{ name: string; hint: string }[]>([]);
@@ -37,6 +38,7 @@ export default function ClientTracker() {
     try {
       const res = await API.get(`/tasks/public/${token}`);
       setData(res.data);
+      setDocumentsSubmitted(Boolean(res.data?.client?.lastClientUploadAt));
     } catch (err) {
       console.error('Error fetching status:', err);
     } finally {
@@ -60,6 +62,8 @@ export default function ClientTracker() {
     try {
       const files = await uploadFilesDirectly(Array.from(filesList), `/tasks/upload-signature/${token}`);
       await API.post(`/tasks/upload/${token}`, { serviceCategory: category, files });
+      // A new file means the client may submit a fresh update to the CA.
+      setDocumentsSubmitted(false);
       // The file is saved now. Refresh the status in the background instead
       // of keeping the Uploading button busy for another serverless request.
       void fetchStatus();
@@ -85,8 +89,9 @@ export default function ClientTracker() {
     setSubmittingDocuments(true);
     try {
       await API.post(`/tasks/submit/${token}`);
+      setDocumentsSubmitted(true);
       showToast('Documents submitted to your CA successfully.', 'success');
-      await fetchStatus();
+      void fetchStatus();
     } catch (err: any) {
       showToast(err.response?.data?.message || 'Could not submit documents. Please try again.', 'error');
     } finally {
@@ -370,15 +375,22 @@ export default function ClientTracker() {
             <Plus size={14} /> Need to upload any other document? Add custom slot
           </button>
         </div>
-        <button
-          type="button"
-          onClick={submitDocumentsToCA}
-          disabled={submittingDocuments || !data.tasks?.some((task: any) => task.documentType === 'Client Document' && task.files?.length > 0)}
-          className="w-full min-h-11 rounded-xl bg-emerald-600 px-4 text-xs font-extrabold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition inline-flex items-center justify-center gap-2 cursor-pointer"
-        >
-          {submittingDocuments ? <Loader2 size={16} className="animate-spin" /> : <CheckCheck size={16} />} Submit Documents to CA
-        </button>
-        <p className="text-center text-[10px] text-slate-500">Upload all required files first, then submit them together for CA review.</p>
+        {documentsSubmitted ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
+            <p className="inline-flex items-center justify-center gap-1.5 text-xs font-extrabold text-emerald-800"><CheckCheck size={16} /> Documents submitted successfully to your CA</p>
+            <p className="mt-1 text-[10px] text-emerald-700">Your CA has been notified. You can add more documents if needed.</p>
+          </div>
+        ) : <>
+          <button
+            type="button"
+            onClick={submitDocumentsToCA}
+            disabled={submittingDocuments || !data.tasks?.some((task: any) => task.documentType === 'Client Document' && task.files?.length > 0)}
+            className="w-full min-h-11 rounded-xl bg-emerald-600 px-4 text-xs font-extrabold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition inline-flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {submittingDocuments ? <Loader2 size={16} className="animate-spin" /> : <CheckCheck size={16} />} Submit Documents to CA
+          </button>
+          <p className="text-center text-[10px] text-slate-500">Upload all required files first, then submit them together for CA review.</p>
+        </>}
       </div>
 
       {/* Filing Status Timeline */}
