@@ -21,11 +21,21 @@ export default function Team() {
   const [taskLoading, setTaskLoading] = useState(false);
   const [assigningTask, setAssigningTask] = useState(false);
 
+  // Client Search & Selection States for Tasks
+  const [clients, setClients] = useState<any[]>([]);
+  const [clientSearch, setClientSearch] = useState('');
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+
   const loadTeam = async () => {
     try { 
       const response = await API.get('/team'); 
       setMembers(response.data.members || []); 
       setSeatLimit(response.data.seatLimit || 5); 
+
+      // Fetch clients for task assignment
+      const clientRes = await API.get('/clients');
+      setClients(clientRes.data.clients || []);
     }
     catch (error: any) { 
       showToast(error.response?.data?.message || 'Could not load your team.', 'error'); 
@@ -35,15 +45,13 @@ export default function Team() {
 
   const loadTasks = async () => {
     try {
-      // Firm ID ya user workspace ke hisab se tasks fetch karna
-      // Yahan hum firm/user ki id use karenge jo backend se mil sakti hai ya default route
       const firmId = members[0]?.firmId || 'default';
       const res = await API.get(`/tasks/team-tasks/${firmId}`);
       if (res.data.success) {
         setTasks(res.data.tasks || []);
       }
     } catch (error) {
-      // Handle silent or non-blocking task fetch error
+      // Handle silent error
     } finally {
       setTaskLoading(false);
     }
@@ -82,10 +90,19 @@ export default function Team() {
     }
   };
 
+  // Filter clients based on search query (Name, PAN, or Phone)
+  const filteredClients = clients.filter((c) => {
+    const query = clientSearch.toLowerCase();
+    const nameMatch = c.name?.toLowerCase().includes(query);
+    const panMatch = c.panNumber?.toLowerCase().includes(query);
+    const phoneMatch = c.phone?.includes(query) || c.whatsappNumber?.includes(query);
+    return nameMatch || panMatch || phoneMatch;
+  });
+
   const handleCreateTask = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!taskTitle || !assignedStaff) {
-      showToast('Please enter a task title and select a staff member.', 'error');
+    if (!taskTitle || !assignedStaff || !selectedClient) {
+      showToast('Please enter a task title, select staff, and choose a client.', 'error');
       return;
     }
     setAssigningTask(true);
@@ -95,13 +112,16 @@ export default function Team() {
         firmId,
         title: taskTitle,
         description: taskDesc,
-        assignedTo: assignedStaff
+        assignedTo: assignedStaff,
+        client: selectedClient._id
       });
       if (res.data.success) {
         showToast('Task successfully assigned to staff!', 'success');
         setTaskTitle('');
         setTaskDesc('');
         setAssignedStaff('');
+        setSelectedClient(null);
+        setClientSearch('');
         await loadTasks();
       }
     } catch (error: any) {
@@ -175,7 +195,7 @@ export default function Team() {
           )}
         </section>
 
-        {/* --- 6TH FEATURE: TASK & TEAM MANAGEMENT SECTION --- */}
+        {/* --- TASK & TEAM MANAGEMENT SECTION WITH CLIENT SEARCH --- */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 space-y-5">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-700">
             <CheckSquare size={16} /> Task & Team Management
@@ -189,6 +209,46 @@ export default function Team() {
             <div>
               <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Task Title</label>
               <input type="text" required value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="e.g., File ITR for Client X" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
+            </div>
+
+            {/* Smart Client Search & Selection Box */}
+            <div className="relative">
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Search & Select Client</label>
+              <input 
+                type="text" 
+                value={selectedClient ? `${selectedClient.name} (PAN: ${selectedClient.panNumber || 'N/A'}, Ph: ${selectedClient.phone || selectedClient.whatsappNumber || 'N/A'})` : clientSearch} 
+                onChange={(e) => {
+                  setClientSearch(e.target.value);
+                  setSelectedClient(null);
+                  setShowClientDropdown(true);
+                }}
+                onFocus={() => setShowClientDropdown(true)}
+                placeholder="Type client name, PAN or mobile number to search..." 
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 bg-white" 
+              />
+              
+              {showClientDropdown && clientSearch && !selectedClient && (
+                <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                  {filteredClients.length === 0 ? (
+                    <div className="p-3 text-xs text-slate-500">No matching clients found.</div>
+                  ) : (
+                    filteredClients.map((c) => (
+                      <div 
+                        key={c._id} 
+                        onClick={() => {
+                          setSelectedClient(c);
+                          setClientSearch('');
+                          setShowClientDropdown(false);
+                        }} 
+                        className="cursor-pointer border-b border-slate-100 p-2.5 text-xs hover:bg-emerald-50"
+                      >
+                        <p className="font-bold text-slate-800">{c.name}</p>
+                        <p className="text-[11px] text-slate-500">PAN: {c.panNumber || 'N/A'} | Ph: {c.phone || c.whatsappNumber || 'N/A'}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
