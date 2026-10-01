@@ -223,7 +223,7 @@ export default function Team() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-slate-800">{member.email}</p>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        {isActive ? `Active · ${staffTasks.length} Total Tasks (${pendingCount} Pending)` : 'Login Pending (Not yet logged in)'}
+                        {isActive ? `Active · ${staffTasks.length} assigned · ${pendingCount} pending/in progress · ${completedCount} completed` : 'Login Pending (Not yet logged in)'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -362,6 +362,12 @@ export default function Team() {
                 <button onClick={() => setActiveStaffWork(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                   <X size={18} />
                 </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-center text-xs">
+                <div><p className="font-extrabold text-slate-900">{activeStaffWork.tasks.length}</p><p className="mt-0.5 text-slate-500">Assigned</p></div>
+                <div><p className="font-extrabold text-amber-700">{activeStaffWork.tasks.filter((task: any) => task.status !== 'Completed').length}</p><p className="mt-0.5 text-slate-500">Open</p></div>
+                <div><p className="font-extrabold text-emerald-700">{activeStaffWork.tasks.filter((task: any) => task.status === 'Completed').length}</p><p className="mt-0.5 text-slate-500">Completed</p></div>
               </div>
 
               {activeStaffWork.tasks.length === 0 ? (

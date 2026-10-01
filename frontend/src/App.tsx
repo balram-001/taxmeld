@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Routes, Route } from 'react-router-dom';
 import { X, LogOut, CheckCircle2, Trash2, UploadCloud } from 'lucide-react';
 import axios from 'axios';
 
@@ -18,6 +18,7 @@ import ClientActivity from './pages/ClientActivity';
 import Team from './pages/Team';
 import TeamAccess from './pages/TeamAccess';
 import TeamLogin from './pages/TeamLogin';
+import StaffDashboard from './pages/StaffDashboard';
 import API from './api';
 
 function ClientUploadNotifications({ enabled }: { enabled: boolean }) {
@@ -90,6 +91,9 @@ export default function App() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDemoUpgrade, setShowDemoUpgrade] = useState(false);
+  const isStaffUser = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}').role === 'staff'; } catch { return false; }
+  })();
 
   const handleConfirmLogout = () => {
     localStorage.removeItem('token');
@@ -222,12 +226,13 @@ export default function App() {
             <Route path="/payment/:plan" element={<Payment />} />
             <Route path="/track/:token" element={<ClientTracker />} />
             <Route path="/demo" element={<DemoEmail onStart={() => setIsDemoMode(true)} />} />
-            <Route path="/" element={isAuthenticated ? <Dashboard /> : isDemoMode ? <Dashboard isDemo onDemoLimit={() => setShowDemoUpgrade(true)} /> : <LandingPage />} />
+            <Route path="/" element={isAuthenticated ? (isStaffUser ? <Navigate to="/staff-dashboard" replace /> : <Dashboard />) : isDemoMode ? <Dashboard isDemo onDemoLimit={() => setShowDemoUpgrade(true)} /> : <LandingPage />} />
             <Route path="/client/:id" element={<ClientDetail />} />
             <Route path="/activity" element={<ClientActivity />} />
             <Route path="/team" element={<Team />} />
             <Route path="/team-access" element={<TeamAccess onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/team-login" element={<TeamLogin onLogin={() => setIsAuthenticated(true)} />} />
+            <Route path="/staff-dashboard" element={isAuthenticated ? <StaffDashboard /> : <Navigate to="/team-login" replace />} />
           </Routes>
         </main>
       </div>

@@ -23,7 +23,7 @@ export default function TeamLogin({ onLogin }: { onLogin: () => void }) {
       const response = await API.post('/team/login/verify-otp', { email, otp });
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      onLogin(); navigate('/');
+      onLogin(); navigate('/staff-dashboard');
     } catch (err: any) { setError(err.response?.data?.message || 'Could not verify the OTP.'); }
     finally { setLoading(false); }
   };

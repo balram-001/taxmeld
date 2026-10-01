@@ -575,36 +575,86 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
 
 export const getTasksByFirm = async (req: any, res: Response) => {
   try {
-    const { firmId } = req.params;
-    let query = {};
-
-    // Check karo ki firmId valid MongoDB ObjectId hai ya nahi
-    if (firmId && firmId !== 'default' && firmId.match(/^[0-9a-fA-F]{24}$/)) {
-      query = { firmId };
-    } else if (req.user?.id) {
-      // Agar invalid ya default hai, toh logged-in CA/User ki ID use kar lo
-      query = { firmId: req.user.id };
+    const ownerId = req.user?.id;
+    if (!ownerId || !(await isWorkspaceOwner(ownerId))) {
+      res.status(403).json({ success: false, message: 'Only the CA owner can view team workload.' });
+      return;
     }
-
-    const tasks = await Task.find(query).populate('assignedTo client');
+    const tasks = await Task.find({ firmId: ownerId }).populate('assignedTo client').sort({ updatedAt: -1 });
     res.status(200).json({ success: true, tasks });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 };
-export const getStaffAssignedTasks = async (req: any, res: Response) => {
+
+const findActiveStaffInvite = async (staffUserId: string) =>
+  TeamInvite.findOne({ staffUserId, status: 'active' });
+
+/** Data shown in the separate staff workspace. A staff account sees only its own assignments. */
+export const getStaffDashboard = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const staffId = req.user?.id; // Logged-in staff ki ID
-    if (!staffId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized staff' });
+    const staffUserId = req.user?.id;
+    if (!staffUserId) {
+      res.status(401).json({ success: false, message: 'Unauthorized staff.' });
+      return;
+    }
+    const [staff, invite] = await Promise.all([
+      User.findById(staffUserId).select('name email role workspaceOwnerId').lean(),
+      findActiveStaffInvite(staffUserId),
+    ]);
+    if (!staff || staff.role !== 'staff' || !invite) {
+      res.status(403).json({ success: false, message: 'This staff workspace is not available.' });
+      return;
     }
 
-    const tasks = await Task.find({ assignedTo: staffId }).populate('client assignedTo');
-    res.status(200).json({ success: true, tasks });
+    const tasks = await Task.find({ assignedTo: invite._id })
+      .populate('client', 'name panNumber phone whatsappNumber serviceType')
+      .sort({ createdAt: -1 });
+    const completed = tasks.filter((task: any) => task.status === 'Completed').length;
+    const inProgress = tasks.filter((task: any) => task.status === 'In Progress').length;
+    const pending = tasks.filter((task: any) => task.status === 'Pending').length;
+    res.json({
+      success: true,
+      staff: { name: staff.name, email: staff.email },
+      summary: { total: tasks.length, pending, inProgress, completed, assignedClients: new Set(tasks.map((task: any) => String(task.client?._id || task.client || ''))).size },
+      tasks,
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+/** Staff can update only the status of a task assigned to their own invitation. */
+export const updateStaffTaskStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const staffUserId = req.user?.id;
+    const status = String(req.body.status || '');
+    if (!staffUserId || !['Pending', 'In Progress', 'Completed'].includes(status)) {
+      res.status(400).json({ success: false, message: 'Choose a valid task status.' });
+      return;
+    }
+    const invite = await findActiveStaffInvite(staffUserId);
+    if (!invite) {
+      res.status(403).json({ success: false, message: 'This staff workspace is not available.' });
+      return;
+    }
+    const task = await Task.findOneAndUpdate(
+      { _id: req.params.id, assignedTo: invite._id },
+      { $set: { status } },
+      { new: true }
+    ).populate('client', 'name panNumber phone whatsappNumber serviceType');
+    if (!task) {
+      res.status(404).json({ success: false, message: 'Assigned task not found.' });
+      return;
+    }
+    res.json({ success: true, message: `Task marked ${status}.`, task });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Kept for the existing route; it now returns the same secure staff-only data.
+export const getStaffAssignedTasks = getStaffDashboard;
 export const getStaffWorkloadSummary = async (req: any, res: Response) => {
   try {
     const firmId = req.user?.id; // CA owner id

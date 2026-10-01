@@ -13,7 +13,9 @@ import {
   verifyClientPortal,
   createTask,
   getTasksByFirm,
-  getStaffAssignedTasks
+  getStaffAssignedTasks,
+  getStaffDashboard,
+  updateStaffTaskStatus
 } from '../controllers/taskController';
 import { protect, protectClientPortal } from '../middleware/authMiddleware';
 
@@ -39,5 +41,7 @@ router.put('/:id', protect, updateTaskStatus);
 router.post('/team-task/add', protect, createTask);
 router.get('/team-tasks/:firmId', protect, getTasksByFirm);
 router.get('/staff-tasks', protect, getStaffAssignedTasks);
+router.get('/staff-dashboard', protect, getStaffDashboard);
+router.put('/staff-tasks/:id/status', protect, updateStaffTaskStatus);
 
 export default router;

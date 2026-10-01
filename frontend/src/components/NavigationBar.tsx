@@ -28,7 +28,7 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
 
   return (
     <nav className="border-b border-slate-200 bg-white shadow-sm px-4 sm:px-8 py-3 flex justify-between items-center sticky top-0 z-40">
-      <Link to="/" className="flex items-center" aria-label="TaxMeld home">
+      <Link to={isStaff ? "/staff-dashboard" : "/"} className="flex items-center" aria-label="TaxMeld home">
         <img src="/taxmeld-logo.png" alt="TaxMeld" className="h-9 sm:h-10 w-auto object-contain" />
       </Link>
       <div className="flex items-center gap-3 relative">
@@ -58,13 +58,13 @@ export default function NavigationBar({ isAuthenticated, onLogoutRequest, onDele
                 </Link>
                 <Link to="/team" onClick={() => setDropdownOpen(false)} className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer transition"><Users size={14} className="text-emerald-600" /> Team staff</Link>
                 </>}
-                <Link
+                {!isStaff && <Link
                   to="/activity"
                   onClick={() => setDropdownOpen(false)}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer transition"
                 >
                   <BellRing size={14} className="text-amber-500" /> Notifications & Client Activity
-                </Link>
+                </Link>}
 
                 <button
                   onClick={() => {
