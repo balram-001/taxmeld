@@ -109,12 +109,19 @@ export const verifyStaffLoginOtp = async (req: Request, res: Response): Promise<
 export const deleteTeamMember = async (req: any, res: Response) => {
   try {
     const { id } = req.params;
-    
-    // Direct ID se User model mein dhoondh kar delete karo
-    const deletedStaff = await User.findByIdAndDelete(id);
-    
+    const caId = req.user._id;
+
+    // 1. Pehle check karo ki kya ye main User model mein hai
+    let deletedStaff = await User.findByIdAndDelete(id);
+
     if (!deletedStaff) {
-      return res.status(404).json({ success: false, message: 'Staff member not found in database.' });
+      // 2. Agar wahan nahi mila, toh CA ke document mein pending team member ya array mein dhoondh kar remove karo
+      await User.findByIdAndUpdate(caId, {
+        $pull: { 
+          teamMembers: { _id: id },
+          pendingInvites: { _id: id } 
+        }
+      });
     }
 
     return res.status(200).json({ 
