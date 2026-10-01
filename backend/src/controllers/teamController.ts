@@ -106,3 +106,16 @@ export const verifyStaffLoginOtp = async (req: Request, res: Response): Promise<
     res.json({ message: 'Team workspace access verified.', token, user: { id: staff._id, name: staff.name, email: staff.email, role: 'staff' } });
   } catch (error: any) { res.status(500).json({ message: error.message || 'Could not verify the staff sign-in OTP.' }); }
 };
+export const deleteTeamMember = async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const staff = await User.findById(id);
+    if (!staff) {
+      return res.status(404).json({ success: false, message: 'Staff member not found.' });
+    }
+    await User.findByIdAndDelete(id);
+    res.status(200).json({ success: true, message: 'Staff member deleted successfully.' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
