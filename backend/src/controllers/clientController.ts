@@ -7,6 +7,8 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { sendClientWelcomeEmail } from '../utils/emailService';
 import { getWorkspaceOwnerId, isWorkspaceOwner } from '../utils/workspace';
 import { isStaffAssignedToClient } from '../utils/staffAccess';
+import { TeamInvite } from '../models/TeamInvite';
+import Task from '../models/Task';
 
 export const createClient = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -120,8 +122,17 @@ export const getClients = async (req: AuthRequest, res: Response): Promise<void>
 
     const workspaceOwnerId = await getWorkspaceOwnerId(String(userId));
     if (!workspaceOwnerId) { res.status(401).json({ message: 'Workspace access is unavailable.' }); return; }
+    const user = await User.findById(userId).select('role').lean();
+    let query: Record<string, any> = { userId: workspaceOwnerId };
+    // Staff can never enumerate the CA's full client list. They receive only
+    // the client records allocated to their active team invitation.
+    if (user?.role === 'staff') {
+      const invite = await TeamInvite.findOne({ staffUserId: userId, status: 'active' }).select('_id').lean();
+      const assignedClientIds = invite ? await Task.find({ assignedTo: invite._id }).distinct('client') : [];
+      query = { ...query, _id: { $in: assignedClientIds } };
+    }
     // Keep client numbers stable in the dashboard: first client is #1, then #2.
-    const clients = await Client.find({ userId: workspaceOwnerId }).sort({ createdAt: 1 });
+    const clients = await Client.find(query).sort({ createdAt: 1 });
     res.status(200).json(clients);
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to fetch clients', error: error.message });
