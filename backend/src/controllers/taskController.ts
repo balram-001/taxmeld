@@ -10,6 +10,7 @@ import { sendFinalAckEmail } from '../utils/emailService';
 import cloudinary, { isCloudinaryConfigured } from '../config/cloudinary';
 import { getWorkspaceOwnerId } from '../utils/workspace';
 import jwt from 'jsonwebtoken';
+import Task from '../models/Task';
 
 type CloudFilePayload = { fileUrl: string; publicId: string; originalFileName: string; mimeType?: string };
 
@@ -533,5 +534,25 @@ export const getStoredFile = async (req: Request, res: Response): Promise<void> 
     res.status(200).send(storedFile.data);
   } catch {
     res.status(404).json({ message: 'This document is no longer available.' });
+  }
+};
+export const createTask = async (req: Request, res: Response) => {
+  try {
+    const { firmId, title, description, assignedTo, client, dueDate } = req.body;
+    const newTask = new Task({ firmId, title, description, assignedTo, client, dueDate });
+    await newTask.save();
+    res.status(201).json({ success: true, message: 'Task assigned successfully!', task: newTask });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const getTasksByFirm = async (req: Request, res: Response) => {
+  try {
+    const { firmId } = req.params;
+    const tasks = await Task.find({ firmId }).populate('assignedTo client');
+    res.status(200).json({ success: true, tasks });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
   }
 };

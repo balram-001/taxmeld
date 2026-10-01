@@ -19,6 +19,7 @@ import paymentRoutes from './routes/paymentRoutes';
 import teamRoutes from './routes/teamRoutes';
 import rateLimit from 'express-rate-limit';
 
+
 dotenv.config();
 
 if (!process.env.JWT_SECRET) {
