@@ -5,7 +5,7 @@ import { DocumentTask } from '../models/DocumentTask';
 import { User } from '../models/User';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { sendClientWelcomeEmail } from '../utils/emailService';
-import { getWorkspaceOwnerId } from '../utils/workspace';
+import { getWorkspaceOwnerId, isWorkspaceOwner } from '../utils/workspace';
 
 export const createClient = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -119,7 +119,8 @@ export const getClients = async (req: AuthRequest, res: Response): Promise<void>
 
     const workspaceOwnerId = await getWorkspaceOwnerId(String(userId));
     if (!workspaceOwnerId) { res.status(401).json({ message: 'Workspace access is unavailable.' }); return; }
-    const clients = await Client.find({ userId: workspaceOwnerId }).sort({ createdAt: -1 });
+    // Keep client numbers stable in the dashboard: first client is #1, then #2.
+    const clients = await Client.find({ userId: workspaceOwnerId }).sort({ createdAt: 1 });
     res.status(200).json(clients);
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to fetch clients', error: error.message });
@@ -161,6 +162,11 @@ export const deleteClient = async (req: AuthRequest, res: Response): Promise<voi
   try {
     const clientId = req.params.id;
     const userId = req.user?.id || req.user?._id;
+
+    if (!userId || !(await isWorkspaceOwner(String(userId)))) {
+      res.status(403).json({ message: 'Only the CA owner can delete a client.' });
+      return;
+    }
 
     const workspaceOwnerId = userId ? await getWorkspaceOwnerId(String(userId)) : null;
     const client = workspaceOwnerId ? await Client.findOne({ _id: clientId, userId: workspaceOwnerId }) : null;

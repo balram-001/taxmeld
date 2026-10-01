@@ -5,7 +5,7 @@ import { useToast } from '../toast';
 import { resolveDownloadFileUrl, resolveFileUrl, uploadFilesDirectly } from '../cloudinary';
 import {
   ArrowLeft, CheckCheck, Download, ExternalLink, Eye, FileText,
-  Loader2, SlidersHorizontal, Upload,
+  Loader2, SlidersHorizontal, Upload, Trash2,
 } from 'lucide-react';
 
 const ClientDetail: React.FC = () => {
@@ -21,6 +21,8 @@ const ClientDetail: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [addingFiles, setAddingFiles] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingClient, setDeletingClient] = useState(false);
   const uploadInFlight = useRef(false);
 
   const loadWorkflow = async (trackingToken: string) => {
@@ -82,6 +84,22 @@ const ClientDetail: React.FC = () => {
     [tasks]
   );
   const serviceLabel = client?.serviceType || 'Compliance';
+  const isOwner = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}').role !== 'staff'; }
+    catch { return true; }
+  })();
+
+  const deleteClient = async () => {
+    if (!client || deletingClient) return;
+    setDeletingClient(true);
+    try {
+      await API.delete(`/clients/${client._id}`);
+      showToast(`${client.name} was deleted successfully.`, 'success');
+      navigate('/');
+    } catch (error: any) {
+      showToast(error.response?.data?.message || 'Could not delete this client.', 'error');
+    } finally { setDeletingClient(false); }
+  };
 
   const uploadFinalDocuments = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -140,9 +158,12 @@ const ClientDetail: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 sm:py-8">
       <div className="max-w-4xl mx-auto space-y-5">
-        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-emerald-700 transition cursor-pointer">
-          <ArrowLeft size={16} /> Back to Dashboard
-        </button>
+        <div className="flex items-center justify-between gap-3">
+          <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-emerald-700 transition cursor-pointer">
+            <ArrowLeft size={16} /> Back to Dashboard
+          </button>
+          {isOwner && <button onClick={() => setShowDeleteConfirm(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 transition cursor-pointer"><Trash2 size={14} /> Delete Client</button>}
+        </div>
 
         <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
@@ -252,6 +273,8 @@ const ClientDetail: React.FC = () => {
             </div>
           </section>
         )}
+
+        {showDeleteConfirm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600"><Trash2 size={22} /></div><h2 className="mt-4 text-lg font-extrabold text-slate-900">Delete this client?</h2><p className="mt-2 text-sm leading-6 text-slate-600">This will permanently remove {client.name}, their workflow and all linked document records. This cannot be undone.</p><div className="mt-6 flex gap-2"><button disabled={deletingClient} onClick={() => setShowDeleteConfirm(false)} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-200">Cancel</button><button disabled={deletingClient} onClick={deleteClient} className="flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-rose-700 disabled:bg-rose-300">{deletingClient ? 'Deleting...' : 'Yes, Delete'}</button></div></div></div>}
       </div>
     </div>
   );
