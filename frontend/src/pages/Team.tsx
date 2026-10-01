@@ -113,7 +113,7 @@ export default function Team() {
     const nameMatch = c.name?.toLowerCase().includes(query);
     const panMatch = c.panNumber?.toLowerCase().includes(query);
     const phoneMatch = c.phone?.includes(query) || c.whatsappNumber?.includes(query);
-    return nameMatch || panMatch || phoneMatch;
+    return (nameMatch || panMatch || phoneMatch) && !selectedClients.some((selected) => selected._id === c._id);
   });
 
   const handleSelectClient = (client: any) => {
@@ -277,19 +277,22 @@ export default function Team() {
 
             {/* Selected Clients Chips */}
             {selectedClients.length > 0 && (
-              <div className="flex flex-wrap gap-2">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                <p className="mb-2 text-xs font-extrabold text-emerald-800">{selectedClients.length} client{selectedClients.length === 1 ? '' : 's'} selected for this task</p>
+                <div className="flex flex-wrap gap-2">
                 {selectedClients.map((c) => (
                   <span key={c._id} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200">
                     {c.name} ({c.panNumber || 'No PAN'})
                     <button type="button" onClick={() => handleRemoveClient(c._id)} className="text-emerald-600 hover:text-red-600 font-extrabold ml-1">×</button>
                   </span>
                 ))}
+                </div>
               </div>
             )}
 
             {/* Client Multi Search */}
             <div className="relative">
-              <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Search & Add Clients</label>
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Search & Add Clients (Select one or more)</label>
               <input 
                 type="text" 
                 value={clientSearch} 
@@ -298,16 +301,16 @@ export default function Team() {
                   setShowClientDropdown(true);
                 }}
                 onFocus={() => setShowClientDropdown(true)}
-                placeholder="Type client name, PAN or mobile number..." 
+                placeholder="Click here, then select multiple clients one by one..."
                 className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 bg-white" 
               />
               
-              {showClientDropdown && clientSearch && (
+              {showClientDropdown && (
                 <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                   {filteredClients.length === 0 ? (
-                    <div className="p-3 text-xs text-slate-500">No matching clients found.</div>
+                    <div className="p-3 text-xs text-slate-500">{selectedClients.length ? 'All matching clients are already selected.' : 'No matching clients found.'}</div>
                   ) : (
-                    filteredClients.map((c) => (
+                    filteredClients.slice(0, 30).map((c) => (
                       <div 
                         key={c._id} 
                         onClick={() => handleSelectClient(c)} 

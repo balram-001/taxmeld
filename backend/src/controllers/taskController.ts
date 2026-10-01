@@ -9,8 +9,10 @@ import path from 'path';
 import { sendFinalAckEmail } from '../utils/emailService';
 import cloudinary, { isCloudinaryConfigured } from '../config/cloudinary';
 import { getWorkspaceOwnerId } from '../utils/workspace';
+import { isWorkspaceOwner } from '../utils/workspace';
 import jwt from 'jsonwebtoken';
 import Task from '../models/Task';
+import { TeamInvite } from '../models/TeamInvite';
 
 type CloudFilePayload = { fileUrl: string; publicId: string; originalFileName: string; mimeType?: string };
 
@@ -536,10 +538,34 @@ export const getStoredFile = async (req: Request, res: Response): Promise<void> 
     res.status(404).json({ message: 'This document is no longer available.' });
   }
 };
-export const createTask = async (req: Request, res: Response) => {
+export const createTask = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { firmId, title, description, assignedTo, client, dueDate } = req.body;
-    const newTask = new Task({ firmId, title, description, assignedTo, client, dueDate });
+    const ownerId = req.user?.id;
+    const { title, description, assignedTo, client, dueDate } = req.body;
+    if (!ownerId || !(await isWorkspaceOwner(ownerId))) {
+      res.status(403).json({ success: false, message: 'Only the CA owner can assign team tasks.' });
+      return;
+    }
+    if (!title || !assignedTo || !client) {
+      res.status(400).json({ success: false, message: 'Task title, staff member and client are required.' });
+      return;
+    }
+
+    // The selected staff invite and client must belong to this CA workspace.
+    const [staffInvite, assignedClient] = await Promise.all([
+      TeamInvite.findOne({ _id: assignedTo, ownerId, status: 'active' }),
+      Client.findOne({ _id: client, userId: ownerId }),
+    ]);
+    if (!staffInvite) {
+      res.status(400).json({ success: false, message: 'Select an active staff member from your team.' });
+      return;
+    }
+    if (!assignedClient) {
+      res.status(400).json({ success: false, message: 'Select a client from your workspace.' });
+      return;
+    }
+
+    const newTask = new Task({ firmId: ownerId, title: String(title).trim(), description, assignedTo, client, dueDate });
     await newTask.save();
     res.status(201).json({ success: true, message: 'Task assigned successfully!', task: newTask });
   } catch (error: any) {
