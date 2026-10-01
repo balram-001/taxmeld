@@ -547,10 +547,20 @@ export const createTask = async (req: Request, res: Response) => {
   }
 };
 
-export const getTasksByFirm = async (req: Request, res: Response) => {
+export const getTasksByFirm = async (req: any, res: Response) => {
   try {
     const { firmId } = req.params;
-    const tasks = await Task.find({ firmId }).populate('assignedTo client');
+    let query = {};
+
+    // Check karo ki firmId valid MongoDB ObjectId hai ya nahi
+    if (firmId && firmId !== 'default' && firmId.match(/^[0-9a-fA-F]{24}$/)) {
+      query = { firmId };
+    } else if (req.user?.id) {
+      // Agar invalid ya default hai, toh logged-in CA/User ki ID use kar lo
+      query = { firmId: req.user.id };
+    }
+
+    const tasks = await Task.find(query).populate('assignedTo client');
     res.status(200).json({ success: true, tasks });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
