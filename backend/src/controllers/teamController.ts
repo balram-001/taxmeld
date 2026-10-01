@@ -109,15 +109,28 @@ export const verifyStaffLoginOtp = async (req: Request, res: Response): Promise<
 export const deleteTeamMember = async (req: any, res: Response) => {
   try {
     const { id } = req.params;
-    
-    // Try finding and deleting the user/team member
-    const deletedStaff = await User.findByIdAndDelete(id);
-    if (!deletedStaff) {
-      return res.status(404).json({ success: false, message: 'Staff member not found.' });
+    const caId = req.user._id; // CA jo logged in hai
+
+    // 1. Pehle User collection me ID se dhoondho
+    let staff = await User.findById(id);
+
+    if (!staff) {
+      // Agar direct User model me nahi mila, toh ho sakta hai ye CA ke team array me ho
+      // Toh CA user ke document me se us team member ko pull/remove kar do
+      await User.findByIdAndUpdate(caId, {
+        $pull: { teamMembers: { _id: id } }
+      });
+    } else {
+      // Agar User model me mil gaya, toh usko delete kar do
+      await User.findByIdAndDelete(id);
     }
 
-    res.status(200).json({ success: true, message: 'Staff member / invitation cancelled successfully.' });
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Staff invitation or member removed successfully.' 
+    });
+
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
