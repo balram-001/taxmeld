@@ -30,21 +30,31 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
     // --- TRIAL & 20-CLIENT LIMIT VALIDATION ---
     const workspaceOwnerId = await getWorkspaceOwnerId(String(userId));
     if (!workspaceOwnerId) { res.status(401).json({ message: 'Workspace access is unavailable.' }); return; }
-    const user = await User.findById(workspaceOwnerId);
-    if (!user) {
+    const [workspaceOwner, actor] = await Promise.all([
+      User.findById(workspaceOwnerId),
+      User.findById(userId).select('role').lean(),
+    ]);
+    if (!workspaceOwner) {
       res.status(404).json({ message: 'User not found' });
+      return;
+    }
+    const staffInvite = actor?.role === 'staff'
+      ? await TeamInvite.findOne({ staffUserId: userId, ownerId: workspaceOwnerId, status: 'active' }).select('_id').lean()
+      : null;
+    if (actor?.role === 'staff' && !staffInvite) {
+      res.status(403).json({ message: 'Your staff workspace is no longer active. Ask the CA owner to invite you again.' });
       return;
     }
 
     const now = new Date();
 
     // Check if 14-day trial has expired
-    if (user.subscriptionStatus === 'trial' && user.trialEndsAt && now > new Date(user.trialEndsAt)) {
-      user.subscriptionStatus = 'expired';
-      await user.save();
+    if (workspaceOwner.subscriptionStatus === 'trial' && workspaceOwner.trialEndsAt && now > new Date(workspaceOwner.trialEndsAt)) {
+      workspaceOwner.subscriptionStatus = 'expired';
+      await workspaceOwner.save();
     }
 
-    if (user.subscriptionStatus === 'expired') {
+    if (workspaceOwner.subscriptionStatus === 'expired') {
       res.status(403).json({ 
         message: 'Your 14-day free trial has ended. Please choose a paid plan to add more clients.'
       });
@@ -52,7 +62,7 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     // Check if client count has reached the 20 limit during trial
-    if (user.subscriptionStatus === 'trial') {
+    if (workspaceOwner.subscriptionStatus === 'trial') {
       const currentClientCount = await Client.countDocuments({ userId: workspaceOwnerId });
       if (currentClientCount >= 20) {
         res.status(403).json({ 
@@ -76,6 +86,19 @@ export const createClient = async (req: AuthRequest, res: Response): Promise<voi
       userId: workspaceOwnerId,
       trackingToken,
     });
+
+    // A client created by staff belongs to the CA owner, but is immediately
+    // allocated back to that staff member so it appears in both dashboards.
+    if (staffInvite) {
+      await Task.create({
+        firmId: workspaceOwnerId,
+        title: serviceType || 'Client compliance work',
+        description: 'Client added by team staff',
+        assignedTo: staffInvite._id,
+        client: client._id,
+        status: 'Pending',
+      });
+    }
 
     // Send the client their upload and tracking link after the client record is saved.
     let emailDeliveryFailed = false;
