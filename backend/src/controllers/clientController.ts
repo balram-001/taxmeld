@@ -6,6 +6,7 @@ import { User } from '../models/User';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { sendClientWelcomeEmail } from '../utils/emailService';
 import { getWorkspaceOwnerId, isWorkspaceOwner } from '../utils/workspace';
+import { isStaffAssignedToClient } from '../utils/staffAccess';
 
 export const createClient = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -139,9 +140,14 @@ export const getClientById = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const workspaceOwnerId = await getWorkspaceOwnerId(String(userId));
+    const [workspaceOwnerId, user] = await Promise.all([
+      getWorkspaceOwnerId(String(userId)),
+      User.findById(userId).select('role').lean(),
+    ]);
     const client = workspaceOwnerId ? await Client.findOne({ _id: clientId, userId: workspaceOwnerId }) : null;
-    if (!client) {
+    const isAssignedStaff = Boolean(user?.role === 'staff' && client && await isStaffAssignedToClient(String(userId), String(client._id)));
+    const isOwner = Boolean(user?.role !== 'staff' && await isWorkspaceOwner(String(userId)));
+    if (!client || (!isOwner && !isAssignedStaff)) {
       res.status(404).json({ message: 'Client not found or unauthorized' });
       return;
     }

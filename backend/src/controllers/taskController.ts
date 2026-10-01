@@ -13,12 +13,21 @@ import { isWorkspaceOwner } from '../utils/workspace';
 import jwt from 'jsonwebtoken';
 import Task from '../models/Task';
 import { TeamInvite } from '../models/TeamInvite';
+import { isStaffAssignedToClient } from '../utils/staffAccess';
 
 type CloudFilePayload = { fileUrl: string; publicId: string; originalFileName: string; mimeType?: string };
 
 const readCloudFiles = (value: unknown): CloudFilePayload[] => Array.isArray(value)
   ? value.filter((file: any) => file?.fileUrl && file?.publicId && file?.originalFileName)
   : [];
+
+const canManageClientWorkflow = async (userId: string | undefined, clientId: string): Promise<boolean> => {
+  if (!userId) return false;
+  const user = await User.findById(userId).select('role').lean();
+  if (!user) return false;
+  if (user.role === 'staff') return isStaffAssignedToClient(userId, clientId);
+  return isWorkspaceOwner(userId);
+};
 
 export const verifyClientPortal = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -52,7 +61,7 @@ export const createClientUploadSignature = async (req: Request, res: Response): 
 export const createCAUploadSignature = async (req: AuthRequest, res: Response): Promise<void> => {
   const workspaceOwnerId = req.user?.id ? await getWorkspaceOwnerId(req.user.id) : null;
   const client = workspaceOwnerId ? await Client.findOne({ _id: req.params.clientId, userId: workspaceOwnerId }) : null;
-  if (!client || !isCloudinaryConfigured) {
+  if (!client || !isCloudinaryConfigured || !(await canManageClientWorkflow(req.user?.id, String(client._id)))) {
     res.status(400).json({ message: 'Secure upload is temporarily unavailable.' });
     return;
   }
@@ -342,7 +351,7 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
 
     const workspaceOwnerId = req.user?.id ? await getWorkspaceOwnerId(req.user.id) : null;
     const client = workspaceOwnerId ? await Client.findOne({ _id: clientId, userId: workspaceOwnerId }) : null;
-    if (!client) {
+    if (!client || !(await canManageClientWorkflow(req.user?.id, String(client._id)))) {
       res.status(404).json({ message: 'Client not found' });
       return;
     }
@@ -453,7 +462,7 @@ export const updateTaskStatus = async (req: AuthRequest, res: Response): Promise
 
     const workspaceOwnerId = req.user?.id ? await getWorkspaceOwnerId(req.user.id) : null;
     const client = workspaceOwnerId ? await Client.findOne({ _id: task.clientId, userId: workspaceOwnerId }) : null;
-    if (!client) {
+    if (!client || !(await canManageClientWorkflow(req.user?.id, String(client._id)))) {
       res.status(403).json({ message: 'You do not have access to this workflow.' });
       return;
     }

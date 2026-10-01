@@ -160,7 +160,7 @@ const ClientDetail: React.FC = () => {
       <div className="max-w-4xl mx-auto space-y-5">
         <div className="flex items-center justify-between gap-3">
           <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-emerald-700 transition cursor-pointer">
-            <ArrowLeft size={16} /> Back to Dashboard
+            <ArrowLeft size={16} /> Back to {isOwner ? 'Dashboard' : 'My Work'}
           </button>
           {isOwner && <button onClick={() => setShowDeleteConfirm(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 transition cursor-pointer"><Trash2 size={14} /> Delete Client</button>}
         </div>
