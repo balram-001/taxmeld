@@ -566,3 +566,46 @@ export const getTasksByFirm = async (req: any, res: Response) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+export const getStaffAssignedTasks = async (req: any, res: Response) => {
+  try {
+    const staffId = req.user?.id; // Logged-in staff ki ID
+    if (!staffId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized staff' });
+    }
+
+    const tasks = await Task.find({ assignedTo: staffId }).populate('client assignedTo');
+    res.status(200).json({ success: true, tasks });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+export const getStaffWorkloadSummary = async (req: any, res: Response) => {
+  try {
+    const firmId = req.user?.id; // CA owner id
+    // Find all team members belonging to this firm/CA
+    const staffMembers = await User.find({ firmId }); // ya Team collection se
+    
+    // Get tasks assigned to each staff
+    const tasks = await Task.find({ firmId }).populate('client assignedTo');
+
+    // Group tasks by staff
+    const summary = staffMembers.map((staff) => {
+      const staffTasks = tasks.filter((t: any) => t.assignedTo?._id.toString() === staff._id.toString());
+      const completed = staffTasks.filter((t: any) => t.status === 'Completed').length;
+      const pending = staffTasks.filter((t: any) => t.status !== 'Completed').length;
+
+      return {
+        staffId: staff._id,
+        email: staff.email,
+        totalTasks: staffTasks.length,
+        completedTasks: completed,
+        pendingTasks: pending,
+        tasks: staffTasks
+      };
+    });
+
+    res.status(200).json({ success: true, summary });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

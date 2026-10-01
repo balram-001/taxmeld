@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Mail, PlusCircle, UserPlus, Users, CheckSquare } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail, PlusCircle, UserPlus, Users, CheckSquare, Eye, X } from 'lucide-react';
 import API from '../api';
 import { useToast } from '../toast';
 
@@ -21,11 +21,14 @@ export default function Team() {
   const [taskLoading, setTaskLoading] = useState(false);
   const [assigningTask, setAssigningTask] = useState(false);
 
-  // Client Search & Selection States for Tasks
+  // Client Search & Selection States for Tasks (Multiple support)
   const [clients, setClients] = useState<any[]>([]);
   const [clientSearch, setClientSearch] = useState('');
-  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [selectedClients, setSelectedClients] = useState<any[]>([]);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+
+  // Staff Work Modal State
+  const [activeStaffWork, setActiveStaffWork] = useState<any>(null);
 
   const loadTeam = async () => {
     try { 
@@ -33,7 +36,7 @@ export default function Team() {
       setMembers(response.data.members || []); 
       setSeatLimit(response.data.seatLimit || 5); 
 
-      // Robust client fetch logic (handles both array and object response)
+      // Robust client fetch logic
       const clientRes = await API.get('/clients');
       const fetchedClients = Array.isArray(clientRes.data) 
         ? clientRes.data 
@@ -44,7 +47,6 @@ export default function Team() {
       showToast(error.response?.data?.message || 'Could not load your team.', 'error'); 
       navigate('/'); 
     }
-
   };
 
   const loadTasks = async () => {
@@ -55,7 +57,7 @@ export default function Team() {
         setTasks(res.data.tasks || []);
       }
     } catch (error) {
-      // Handle silent error
+      // Silent catch
     } finally {
       setTaskLoading(false);
     }
@@ -94,7 +96,6 @@ export default function Team() {
     }
   };
 
-  // Filter clients based on search query (Name, PAN, or Phone)
   const filteredClients = clients.filter((c) => {
     const query = clientSearch.toLowerCase();
     const nameMatch = c.name?.toLowerCase().includes(query);
@@ -103,33 +104,47 @@ export default function Team() {
     return nameMatch || panMatch || phoneMatch;
   });
 
+  const handleSelectClient = (client: any) => {
+    if (!selectedClients.some((c) => c._id === client._id)) {
+      setSelectedClients([...selectedClients, client]);
+    }
+    setClientSearch('');
+    setShowClientDropdown(false);
+  };
+
+  const handleRemoveClient = (clientId: string) => {
+    setSelectedClients(selectedClients.filter((c) => c._id !== clientId));
+  };
+
   const handleCreateTask = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!taskTitle || !assignedStaff || !selectedClient) {
-      showToast('Please enter a task title, select staff, and choose a client.', 'error');
+    if (!taskTitle || !assignedStaff || selectedClients.length === 0) {
+      showToast('Please enter task title, select staff, and choose at least one client.', 'error');
       return;
     }
     setAssigningTask(true);
     try {
       const firmId = members[0]?.firmId || 'default';
-      const res = await API.post('/tasks/team-task/add', {
-        firmId,
-        title: taskTitle,
-        description: taskDesc,
-        assignedTo: assignedStaff,
-        client: selectedClient._id
-      });
-      if (res.data.success) {
-        showToast('Task successfully assigned to staff!', 'success');
-        setTaskTitle('');
-        setTaskDesc('');
-        setAssignedStaff('');
-        setSelectedClient(null);
-        setClientSearch('');
-        await loadTasks();
+      
+      for (const client of selectedClients) {
+        await API.post('/tasks/team-task/add', {
+          firmId,
+          title: taskTitle,
+          description: taskDesc,
+          assignedTo: assignedStaff,
+          client: client._id
+        });
       }
+
+      showToast('Tasks successfully assigned to staff!', 'success');
+      setTaskTitle('');
+      setTaskDesc('');
+      setAssignedStaff('');
+      setSelectedClients([]);
+      setClientSearch('');
+      await loadTasks();
     } catch (error: any) {
-      showToast(error.response?.data?.message || 'Could not assign task.', 'error');
+      showToast(error.response?.data?.message || 'Could not assign tasks.', 'error');
     } finally {
       setAssigningTask(false);
     }
@@ -152,7 +167,7 @@ export default function Team() {
                 <Users size={16} /> Team workspace
               </div>
               <h1 className="mt-2 text-2xl font-extrabold text-slate-900">Add team staff</h1>
-              <p className="mt-1 text-sm text-slate-500">Invited staff verify their own email OTP, then work inside your shared client workspace.</p>
+              <p className="mt-1 text-sm text-slate-500">Invited staff verify their email and manage assigned client returns.</p>
             </div>
             <span className="shrink-0 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-extrabold text-indigo-800">
               {members.length}/{seatLimit} seats
@@ -168,13 +183,13 @@ export default function Team() {
               <UserPlus size={16} /> {inviting ? 'Sending...' : 'Invite staff'}
             </button>
           </form>
-          <p className="mt-2 text-[11px] text-slate-500">₹399 CA Professional Plan includes 5 staff seats. Extra ₹99 seats will be enabled with payment verification.</p>
         </section>
 
-        {/* Team Members List */}
+        {/* Team Members List with Live Work Tracker */}
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-extrabold uppercase tracking-wider text-slate-700">
-            Registered Team Members
+          <div className="border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-extrabold uppercase tracking-wider text-slate-700 flex justify-between items-center">
+            <span>Registered Team Members & Live Tracker</span>
+            <span className="text-[11px] text-slate-500">Click view work to check individual progress</span>
           </div>
           {loading ? (
             <div className="p-12 text-center"><Loader2 className="mx-auto animate-spin text-emerald-600" /></div>
@@ -182,56 +197,78 @@ export default function Team() {
             <div className="p-10 text-center text-sm text-slate-500">No staff invitations yet.</div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {members.map((member) => (
-                <div key={member._id} className="flex items-center justify-between gap-4 p-4">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-800">{member.email}</p>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      {member.status === 'active' ? 'Email verified · Workspace access active' : 'Invitation sent · Awaiting email verification'}
-                    </p>
+              {members.map((member) => {
+                const staffTasks = tasks.filter((t: any) => t.assignedTo?._id === member._id || t.assignedTo === member._id);
+                const completedCount = staffTasks.filter((t: any) => t.status === 'Completed').length;
+                const pendingCount = staffTasks.length - completedCount;
+
+                return (
+                  <div key={member._id} className="flex items-center justify-between gap-4 p-4 hover:bg-slate-50/50">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-800">{member.email}</p>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        {member.status === 'active' ? 'Active' : 'Pending'} · {staffTasks.length} Total Tasks ({pendingCount} Pending)
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setActiveStaffWork({ member, tasks: staffTasks })} 
+                        className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                      >
+                        <Eye size={14} /> View Work
+                      </button>
+                    </div>
                   </div>
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${member.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                    {member.status === 'active' ? 'Active' : 'Pending'}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
 
-        {/* --- TASK & TEAM MANAGEMENT SECTION WITH CLIENT SEARCH --- */}
+        {/* --- TASK ASSIGNMENT SECTION --- */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 space-y-5">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-700">
-            <CheckSquare size={16} /> Task & Team Management
+            <CheckSquare size={16} /> Task & Client Allocation
           </div>
           <div>
             <h2 className="text-xl font-extrabold text-slate-900">Assign Tasks to Staff</h2>
-            <p className="mt-1 text-sm text-slate-500">Create and allocate specific tasks or returns processing work to your team members.</p>
+            <p className="mt-1 text-sm text-slate-500">Select one or multiple clients and assign tasks directly to a team member.</p>
           </div>
 
           <form onSubmit={handleCreateTask} className="space-y-4 pt-2">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Task Title</label>
-              <input type="text" required value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="e.g., File ITR for Client X" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
+              <input type="text" required value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="e.g., File ITR / GST Return" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
             </div>
 
-            {/* Smart Client Search & Selection Box */}
+            {/* Selected Clients Chips */}
+            {selectedClients.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedClients.map((c) => (
+                  <span key={c._id} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200">
+                    {c.name} ({c.panNumber || 'No PAN'})
+                    <button type="button" onClick={() => handleRemoveClient(c._id)} className="text-emerald-600 hover:text-red-600 font-extrabold ml-1">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Client Multi Search */}
             <div className="relative">
-              <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Search & Select Client</label>
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Search & Add Clients</label>
               <input 
                 type="text" 
-                value={selectedClient ? `${selectedClient.name} (PAN: ${selectedClient.panNumber || 'N/A'}, Ph: ${selectedClient.phone || selectedClient.whatsappNumber || 'N/A'})` : clientSearch} 
+                value={clientSearch} 
                 onChange={(e) => {
                   setClientSearch(e.target.value);
-                  setSelectedClient(null);
                   setShowClientDropdown(true);
                 }}
                 onFocus={() => setShowClientDropdown(true)}
-                placeholder="Type client name, PAN or mobile number to search..." 
+                placeholder="Type client name, PAN or mobile number..." 
                 className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 bg-white" 
               />
               
-              {showClientDropdown && clientSearch && !selectedClient && (
+              {showClientDropdown && clientSearch && (
                 <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                   {filteredClients.length === 0 ? (
                     <div className="p-3 text-xs text-slate-500">No matching clients found.</div>
@@ -239,11 +276,7 @@ export default function Team() {
                     filteredClients.map((c) => (
                       <div 
                         key={c._id} 
-                        onClick={() => {
-                          setSelectedClient(c);
-                          setClientSearch('');
-                          setShowClientDropdown(false);
-                        }} 
+                        onClick={() => handleSelectClient(c)} 
                         className="cursor-pointer border-b border-slate-100 p-2.5 text-xs hover:bg-emerald-50"
                       >
                         <p className="font-bold text-slate-800">{c.name}</p>
@@ -257,7 +290,7 @@ export default function Team() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Description (Optional)</label>
-              <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add instructions or document references..." className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" rows={2} />
+              <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add instructions..." className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" rows={2} />
             </div>
 
             <div>
@@ -274,34 +307,53 @@ export default function Team() {
               <PlusCircle size={16} /> {assigningTask ? 'Assigning...' : 'Assign Task'}
             </button>
           </form>
-
-          {/* Assigned Tasks List */}
-          <div className="border-t border-slate-100 pt-5 mt-6">
-            <h3 className="text-sm font-extrabold text-slate-800 mb-3">Active Team Tasks</h3>
-            {taskLoading ? (
-              <div className="py-6 text-center"><Loader2 className="mx-auto animate-spin text-emerald-600" size={20} /></div>
-            ) : tasks.length === 0 ? (
-              <div className="rounded-xl bg-slate-50 p-6 text-center text-xs text-slate-500 border border-dashed border-slate-200">No tasks assigned to team members yet.</div>
-            ) : (
-              <div className="space-y-3">
-                {tasks.map((t) => (
-                  <div key={t._id} className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 p-4 bg-slate-50/50">
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-800">{t.title}</h4>
-                      {t.description && <p className="mt-0.5 text-xs text-slate-600">{t.description}</p>}
-                      <p className="mt-2 text-[11px] font-medium text-slate-500">
-                        Assigned to: <span className="font-bold text-slate-700">{t.assignedTo?.email || 'Staff Member'}</span>
-                      </p>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800">
-                      {t.status || 'Pending'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </section>
+
+        {/* Staff Live Work Modal / Drawer */}
+        {activeStaffWork && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">{activeStaffWork.member.email}</h3>
+                  <p className="text-xs text-slate-500">Live assigned tasks & client progress</p>
+                </div>
+                <button onClick={() => setActiveStaffWork(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {activeStaffWork.tasks.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500">No tasks currently assigned to this staff member.</div>
+              ) : (
+                <div className="space-y-3">
+                  {activeStaffWork.tasks.map((t: any) => (
+                    <div key={t._id} className="rounded-xl border border-slate-200 p-3.5 bg-slate-50 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="text-xs font-bold text-slate-800">{t.title}</h4>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${t.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                          {t.status || 'Pending'}
+                        </span>
+                      </div>
+                      {t.client && (
+                        <p className="text-[11px] text-slate-600">
+                          Client: <span className="font-bold text-slate-800">{t.client.name}</span> (PAN: {t.client.panNumber || 'N/A'})
+                        </p>
+                      )}
+                      {t.description && <p className="text-[11px] text-slate-500">{t.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="pt-2 text-right">
+                <button onClick={() => setActiveStaffWork(null)} className="rounded-xl bg-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-300">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Link to="/pricing" className="inline-block text-xs font-bold text-emerald-700 hover:underline">View subscription plan</Link>
       </div>

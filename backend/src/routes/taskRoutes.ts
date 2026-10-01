@@ -11,8 +11,9 @@ import {
   createCAUploadSignature,
   submitClientDocuments,
   verifyClientPortal,
-  createTask,      // <-- Yeh import add kiya
-  getTasksByFirm   // <-- Yeh import add kiya
+  createTask,
+  getTasksByFirm,
+  getStaffAssignedTasks // <-- Yahan import add kar diya
 } from '../controllers/taskController';
 import { protect, protectClientPortal } from '../middleware/authMiddleware';
 
@@ -37,5 +38,6 @@ router.put('/:id', protect, updateTaskStatus);
 // --- Naye Team Task Management Routes ---
 router.post('/team-task/add', protect, createTask);
 router.get('/team-tasks/:firmId', protect, getTasksByFirm);
+router.get('/staff-tasks', protect, getStaffAssignedTasks); // <-- verifyToken ki jagah protect use kiya
 
 export default router;
