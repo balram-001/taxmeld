@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Clock, Loader2, Mail, PlusCircle, UserPlus, Users, CheckSquare } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail, PlusCircle, UserPlus, Users, CheckSquare } from 'lucide-react';
 import API from '../api';
 import { useToast } from '../toast';
 
