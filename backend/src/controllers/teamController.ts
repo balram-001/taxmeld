@@ -109,12 +109,14 @@ export const verifyStaffLoginOtp = async (req: Request, res: Response): Promise<
 export const deleteTeamMember = async (req: any, res: Response) => {
   try {
     const { id } = req.params;
-    const staff = await User.findById(id);
-    if (!staff) {
+    
+    // Try finding and deleting the user/team member
+    const deletedStaff = await User.findByIdAndDelete(id);
+    if (!deletedStaff) {
       return res.status(404).json({ success: false, message: 'Staff member not found.' });
     }
-    await User.findByIdAndDelete(id);
-    res.status(200).json({ success: true, message: 'Staff member deleted successfully.' });
+
+    res.status(200).json({ success: true, message: 'Staff member / invitation cancelled successfully.' });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

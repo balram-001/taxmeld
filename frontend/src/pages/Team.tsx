@@ -93,16 +93,17 @@ export default function Team() {
     }
   };
 
-  const handleDeleteStaff = async (staffId: string, staffEmail: string) => {
-    const confirmDelete = window.confirm(`Are you sure you want to permanently remove ${staffEmail}?`);
+  const handleDeleteStaff = async (staffId: string, staffEmail: string, status: string) => {
+    const actionText = status === 'active' ? 'permanently delete' : 'cancel the invitation for';
+    const confirmDelete = window.confirm(`Are you sure you want to ${actionText} ${staffEmail}?`);
     if (!confirmDelete) return;
 
     try {
       await API.delete(`/team/${staffId}`);
-      showToast('Staff member removed successfully.', 'success');
+      showToast(status === 'active' ? 'Staff member removed successfully.' : 'Invitation cancelled successfully.', 'success');
       await loadTeam();
     } catch (error: any) {
-      showToast(error.response?.data?.message || 'Could not delete staff.', 'error');
+      showToast(error.response?.data?.message || 'Could not process request.', 'error');
     }
   };
 
@@ -198,7 +199,7 @@ export default function Team() {
           </form>
         </section>
 
-        {/* Team Members List with Live Tracker & Delete */}
+        {/* Team Members List with Live Tracker & Conditional Cancel/Delete */}
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-extrabold uppercase tracking-wider text-slate-700 flex justify-between items-center">
             <span>Registered Team Members & Live Tracker</span>
@@ -239,11 +240,15 @@ export default function Team() {
                       )}
                       
                       <button 
-                        onClick={() => handleDeleteStaff(member._id, member.email)} 
-                        className="inline-flex items-center gap-1 rounded-xl bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 border border-red-200"
-                        title="Delete Staff"
+                        onClick={() => handleDeleteStaff(member._id, member.email, member.status)} 
+                        className={`inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold border ${
+                          isActive 
+                            ? 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200' 
+                            : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200'
+                        }`}
+                        title={isActive ? 'Delete Staff' : 'Cancel Invitation'}
                       >
-                        <Trash2 size={14} /> Delete
+                        <Trash2 size={14} /> {isActive ? 'Delete' : 'Cancel Invite'}
                       </button>
                     </div>
                   </div>
