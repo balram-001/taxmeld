@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Mail, PlusCircle, UserPlus, Users, CheckSquare, Eye, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail, PlusCircle, UserPlus, Users, CheckSquare, Eye, X, Trash2 } from 'lucide-react';
 import API from '../api';
 import { useToast } from '../toast';
 
@@ -93,6 +93,19 @@ export default function Team() {
     }
   };
 
+  const handleDeleteStaff = async (staffId: string, staffEmail: string) => {
+    const confirmDelete = window.confirm(`Are you sure you want to permanently remove ${staffEmail}?`);
+    if (!confirmDelete) return;
+
+    try {
+      await API.delete(`/team/${staffId}`);
+      showToast('Staff member removed successfully.', 'success');
+      await loadTeam();
+    } catch (error: any) {
+      showToast(error.response?.data?.message || 'Could not delete staff.', 'error');
+    }
+  };
+
   const filteredClients = clients.filter((c) => {
     const query = clientSearch.toLowerCase();
     const nameMatch = c.name?.toLowerCase().includes(query);
@@ -116,7 +129,7 @@ export default function Team() {
   const handleCreateTask = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!taskTitle || !assignedStaff || selectedClients.length === 0) {
-      showToast('Please enter task title, select staff, and choose at least one client.', 'error');
+      showToast('Please enter task title, select active staff, and choose at least one client.', 'error');
       return;
     }
     setAssigningTask(true);
@@ -146,6 +159,9 @@ export default function Team() {
       setAssigningTask(false);
     }
   };
+
+  // Only active staff can be assigned tasks
+  const activeMembers = members.filter((m) => m.status === 'active');
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 sm:py-8">
@@ -182,11 +198,11 @@ export default function Team() {
           </form>
         </section>
 
-        {/* Team Members List with Live Work Tracker */}
+        {/* Team Members List with Live Tracker & Delete */}
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-extrabold uppercase tracking-wider text-slate-700 flex justify-between items-center">
             <span>Registered Team Members & Live Tracker</span>
-            <span className="text-[11px] text-slate-500">Click view work to check individual progress</span>
+            <span className="text-[11px] text-slate-500">Staff must log in via link to receive tasks</span>
           </div>
           {loading ? (
             <div className="p-12 text-center"><Loader2 className="mx-auto animate-spin text-emerald-600" /></div>
@@ -198,21 +214,36 @@ export default function Team() {
                 const staffTasks = tasks.filter((t: any) => t.assignedTo?._id === member._id || t.assignedTo === member._id);
                 const completedCount = staffTasks.filter((t: any) => t.status === 'Completed').length;
                 const pendingCount = staffTasks.length - completedCount;
+                const isActive = member.status === 'active';
 
                 return (
                   <div key={member._id} className="flex items-center justify-between gap-4 p-4 hover:bg-slate-50/50">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-slate-800">{member.email}</p>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        {member.status === 'active' ? 'Active' : 'Pending'} · {staffTasks.length} Total Tasks ({pendingCount} Pending)
+                        {isActive ? `Active · ${staffTasks.length} Total Tasks (${pendingCount} Pending)` : 'Login Pending (Not yet logged in)'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
+                      {isActive ? (
+                        <button 
+                          onClick={() => setActiveStaffWork({ member, tasks: staffTasks })} 
+                          className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                        >
+                          <Eye size={14} /> View Work
+                        </button>
+                      ) : (
+                        <span className="rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 border border-amber-200">
+                          Login Pending
+                        </span>
+                      )}
+                      
                       <button 
-                        onClick={() => setActiveStaffWork({ member, tasks: staffTasks })} 
-                        className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                        onClick={() => handleDeleteStaff(member._id, member.email)} 
+                        className="inline-flex items-center gap-1 rounded-xl bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 border border-red-200"
+                        title="Delete Staff"
                       >
-                        <Eye size={14} /> View Work
+                        <Trash2 size={14} /> Delete
                       </button>
                     </div>
                   </div>
@@ -229,7 +260,7 @@ export default function Team() {
           </div>
           <div>
             <h2 className="text-xl font-extrabold text-slate-900">Assign Tasks to Staff</h2>
-            <p className="mt-1 text-sm text-slate-500">Select one or multiple clients and assign tasks directly to a team member.</p>
+            <p className="mt-1 text-sm text-slate-500">Select active team members only. Pending staff cannot receive tasks until they log in.</p>
           </div>
 
           <form onSubmit={handleCreateTask} className="space-y-4 pt-2">
@@ -291,16 +322,20 @@ export default function Team() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Assign to Staff Member</label>
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Assign to Active Staff Member</label>
               <select required value={assignedStaff} onChange={(e) => setAssignedStaff(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none bg-white focus:border-emerald-600">
-                <option value="">Select staff member...</option>
-                {members.map((m) => (
-                  <option key={m._id} value={m._id}>{m.email} ({m.status})</option>
-                ))}
+                <option value="">Select active staff member...</option>
+                {activeMembers.length === 0 ? (
+                  <option value="" disabled>No active staff available (Ask staff to login via email link)</option>
+                ) : (
+                  activeMembers.map((m) => (
+                    <option key={m._id} value={m._id}>{m.email}</option>
+                  ))
+                )}
               </select>
             </div>
 
-            <button disabled={assigningTask || members.length === 0} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300 w-full sm:w-auto">
+            <button disabled={assigningTask || activeMembers.length === 0} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300 w-full sm:w-auto">
               <PlusCircle size={16} /> {assigningTask ? 'Assigning...' : 'Assign Task'}
             </button>
           </form>

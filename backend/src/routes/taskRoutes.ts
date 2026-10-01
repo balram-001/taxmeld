@@ -13,7 +13,7 @@ import {
   verifyClientPortal,
   createTask,
   getTasksByFirm,
-  getStaffAssignedTasks // <-- Yahan import add kar diya
+  getStaffAssignedTasks
 } from '../controllers/taskController';
 import { protect, protectClientPortal } from '../middleware/authMiddleware';
 
@@ -38,6 +38,6 @@ router.put('/:id', protect, updateTaskStatus);
 // --- Naye Team Task Management Routes ---
 router.post('/team-task/add', protect, createTask);
 router.get('/team-tasks/:firmId', protect, getTasksByFirm);
-router.get('/staff-tasks', protect, getStaffAssignedTasks); // <-- verifyToken ki jagah protect use kiya
+router.get('/staff-tasks', protect, getStaffAssignedTasks);
 
 export default router;

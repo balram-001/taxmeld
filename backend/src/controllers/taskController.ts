@@ -609,3 +609,12 @@ export const getStaffWorkloadSummary = async (req: any, res: Response) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+export const deleteTeamMember = async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    await User.findByIdAndDelete(id);
+    res.status(200).json({ success: true, message: 'Staff deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
