@@ -70,6 +70,15 @@ export const verifyStaffOtp = async (req: Request, res: Response): Promise<void>
     let staff = await User.findOne({ email: invite.email });
     if (staff && String(staff.workspaceOwnerId || '') !== String(invite.ownerId)) { res.status(400).json({ message: 'This email is already used by another TaxMeld account.' }); return; }
     if (!staff) staff = await User.create({ name: invite.email.split('@')[0], email: invite.email, password: await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10), isVerified: true, role: 'staff', workspaceOwnerId: invite.ownerId, subscriptionStatus: 'active', planType: 'team_staff' });
+    // A previously removed staff account can be invited again by the same CA.
+    // Restore it only after it proves access to the invited email through OTP.
+    if (staff.isDeleted) {
+      staff.isDeleted = false;
+      staff.isVerified = true;
+      staff.role = 'staff';
+      staff.workspaceOwnerId = invite.ownerId;
+      await staff.save();
+    }
     invite.status = 'active'; invite.staffUserId = staff._id; invite.otp = undefined; invite.otpExpiresAt = undefined; await invite.save();
     const token = jwt.sign({ id: staff._id }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
     res.json({ message: 'Team access verified.', token, user: { id: staff._id, name: staff.name, email: staff.email, role: 'staff' } });
@@ -106,29 +115,43 @@ export const verifyStaffLoginOtp = async (req: Request, res: Response): Promise<
     res.json({ message: 'Team workspace access verified.', token, user: { id: staff._id, name: staff.name, email: staff.email, role: 'staff' } });
   } catch (error: any) { res.status(500).json({ message: error.message || 'Could not verify the staff sign-in OTP.' }); }
 };
-export const deleteTeamMember = async (req: any, res: Response) => {
+/** Cancel a pending invite or remove an activated staff member from this CA workspace. */
+export const deleteTeamMember = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const caId = req.user._id;
-
-    // 1. Pehle check karo ki kya ye main User model mein hai
-    let deletedStaff = await User.findByIdAndDelete(id);
-
-    if (!deletedStaff) {
-      // 2. Agar wahan nahi mila, toh CA ke document mein pending team member ya array mein dhoondh kar remove karo
-      await User.findByIdAndUpdate(caId, {
-        $pull: { 
-          teamMembers: { _id: id },
-          pendingInvites: { _id: id } 
-        }
-      });
+    const ownerId = req.user?.id;
+    if (!ownerId || !(await isWorkspaceOwner(ownerId))) {
+      res.status(403).json({ message: 'Only the CA owner can manage the team.' });
+      return;
     }
 
-    return res.status(200).json({ 
-      success: true, 
-      message: 'Invitation cancelled successfully.' 
+    // The frontend sends the TeamInvite id, not a User id. The old handler
+    // searched the User collection, returned success, and left this invite visible.
+    const invite = await TeamInvite.findOne({ _id: req.params.id, ownerId });
+    if (!invite) {
+      res.status(404).json({ message: 'This staff invitation no longer exists.' });
+      return;
+    }
+
+    const wasActive = invite.status === 'active';
+    if (invite.staffUserId) {
+      await User.findByIdAndUpdate(invite.staffUserId, { $set: { isDeleted: true } });
+    } else {
+      await User.findOneAndUpdate(
+        { email: invite.email, workspaceOwnerId: ownerId, role: 'staff' },
+        { $set: { isDeleted: true } }
+      );
+    }
+
+    invite.status = 'revoked';
+    invite.otp = undefined;
+    invite.otpExpiresAt = undefined;
+    await invite.save();
+
+    res.json({
+      success: true,
+      message: wasActive ? 'Staff member removed successfully.' : 'Invitation cancelled successfully.'
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message || 'Could not update this team member.' });
   }
 };
