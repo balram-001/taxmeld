@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Mail, PlusCircle, UserPlus, Users, CheckSquare, Eye, X, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail, PlusCircle, UserPlus, Users, CheckSquare, Eye, Trash2 } from 'lucide-react';
 import API from '../api';
 import { useToast } from '../toast';
 
@@ -25,9 +25,6 @@ export default function Team() {
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClients, setSelectedClients] = useState<any[]>([]);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
-
-  // Staff Work Modal State
-  const [activeStaffWork, setActiveStaffWork] = useState<any>(null);
 
   const loadTeam = async () => {
     try { 
@@ -229,7 +226,7 @@ export default function Team() {
                     <div className="flex items-center gap-2">
                       {isActive ? (
                         <button 
-                          onClick={() => setActiveStaffWork({ member, tasks: staffTasks })} 
+                          onClick={() => navigate(`/team/staff/${member._id}`)}
                           className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
                         >
                           <Eye size={14} /> View Work
@@ -349,58 +346,6 @@ export default function Team() {
             </button>
           </form>
         </section>
-
-        {/* Staff Live Work Modal / Drawer */}
-        {activeStaffWork && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900">{activeStaffWork.member.email}</h3>
-                  <p className="text-xs text-slate-500">Live assigned tasks & client progress</p>
-                </div>
-                <button onClick={() => setActiveStaffWork(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-center text-xs">
-                <div><p className="font-extrabold text-slate-900">{activeStaffWork.tasks.length}</p><p className="mt-0.5 text-slate-500">Assigned</p></div>
-                <div><p className="font-extrabold text-amber-700">{activeStaffWork.tasks.filter((task: any) => task.status !== 'Completed').length}</p><p className="mt-0.5 text-slate-500">Open</p></div>
-                <div><p className="font-extrabold text-emerald-700">{activeStaffWork.tasks.filter((task: any) => task.status === 'Completed').length}</p><p className="mt-0.5 text-slate-500">Completed</p></div>
-              </div>
-
-              {activeStaffWork.tasks.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500">No tasks currently assigned to this staff member.</div>
-              ) : (
-                <div className="space-y-3">
-                  {activeStaffWork.tasks.map((t: any) => (
-                    <div key={t._id} className="rounded-xl border border-slate-200 p-3.5 bg-slate-50 space-y-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-xs font-bold text-slate-800">{t.title}</h4>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${t.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                          {t.status || 'Pending'}
-                        </span>
-                      </div>
-                      {t.client && (
-                        <p className="text-[11px] text-slate-600">
-                          Client: <span className="font-bold text-slate-800">{t.client.name}</span> (PAN: {t.client.panNumber || 'N/A'})
-                        </p>
-                      )}
-                      {t.description && <p className="text-[11px] text-slate-500">{t.description}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="pt-2 text-right">
-                <button onClick={() => setActiveStaffWork(null)} className="rounded-xl bg-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-300">
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <Link to="/pricing" className="inline-block text-xs font-bold text-emerald-700 hover:underline">View subscription plan</Link>
       </div>

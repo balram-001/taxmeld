@@ -19,6 +19,7 @@ import Team from './pages/Team';
 import TeamAccess from './pages/TeamAccess';
 import TeamLogin from './pages/TeamLogin';
 import StaffDashboard from './pages/StaffDashboard';
+import StaffWorkReport from './pages/StaffWorkReport';
 import API from './api';
 
 function ClientUploadNotifications({ enabled }: { enabled: boolean }) {
@@ -230,6 +231,7 @@ export default function App() {
             <Route path="/client/:id" element={<ClientDetail />} />
             <Route path="/activity" element={<ClientActivity />} />
             <Route path="/team" element={<Team />} />
+            <Route path="/team/staff/:id" element={isAuthenticated && !isStaffUser ? <StaffWorkReport /> : <Navigate to="/" replace />} />
             <Route path="/team-access" element={<TeamAccess onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/team-login" element={<TeamLogin onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/staff-dashboard" element={isAuthenticated ? <StaffDashboard /> : <Navigate to="/team-login" replace />} />

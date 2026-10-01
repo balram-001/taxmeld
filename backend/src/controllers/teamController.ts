@@ -7,6 +7,7 @@ import { TeamInvite } from '../models/TeamInvite';
 import { User } from '../models/User';
 import { sendOtpEmail, sendTeamInviteEmail } from '../utils/sendEmail';
 import { isWorkspaceOwner } from '../utils/workspace';
+import Task from '../models/Task';
 
 const STAFF_SEAT_LIMIT = 5;
 
@@ -15,6 +16,49 @@ export const listTeam = async (req: AuthRequest, res: Response): Promise<void> =
   if (!ownerId || !(await isWorkspaceOwner(ownerId))) { res.status(403).json({ message: 'Only the CA owner can manage the team.' }); return; }
   const members = await TeamInvite.find({ ownerId, status: { $ne: 'revoked' } }).select('-otp -inviteToken').sort({ createdAt: -1 });
   res.json({ members, seatLimit: STAFF_SEAT_LIMIT });
+};
+
+/** Full CA-only monitoring report for one staff member. */
+export const getStaffWorkload = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const ownerId = req.user?.id;
+    if (!ownerId || !(await isWorkspaceOwner(ownerId))) {
+      res.status(403).json({ message: 'Only the CA owner can view staff work reports.' });
+      return;
+    }
+    const invite = await TeamInvite.findOne({ _id: req.params.id, ownerId, status: 'active' }).select('-otp -inviteToken').lean();
+    if (!invite) {
+      res.status(404).json({ message: 'Active staff member not found.' });
+      return;
+    }
+    const [staffUser, tasks] = await Promise.all([
+      invite.staffUserId ? User.findById(invite.staffUserId).select('name email').lean() : null,
+      Task.find({ assignedTo: invite._id }).populate('client', 'name panNumber phone whatsappNumber serviceType createdAt').sort({ createdAt: 1 }).lean(),
+    ]);
+    const now = Date.now();
+    const ageInDays = (date: Date | string) => Math.max(0, Math.floor((now - new Date(date).getTime()) / 86_400_000));
+    const detailedTasks = tasks.map((task: any) => ({
+      ...task,
+      assignedDaysAgo: ageInDays(task.createdAt),
+      updatedDaysAgo: ageInDays(task.updatedAt),
+      isOverdue: task.status !== 'Completed' && ageInDays(task.createdAt) >= 7,
+    }));
+    const open = detailedTasks.filter((task: any) => task.status !== 'Completed');
+    const completed = detailedTasks.filter((task: any) => task.status === 'Completed');
+    res.json({
+      staff: { id: invite._id, email: invite.email, name: staffUser?.name || invite.email.split('@')[0], joinedAt: invite.createdAt },
+      summary: {
+        assignedClients: new Set(detailedTasks.map((task: any) => String(task.client?._id || task.client || ''))).size,
+        totalTasks: detailedTasks.length,
+        openTasks: open.length,
+        completedTasks: completed.length,
+        overdueTasks: open.filter((task: any) => task.isOverdue).length,
+      },
+      tasks: detailedTasks,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Could not load this staff work report.' });
+  }
 };
 
 export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void> => {
