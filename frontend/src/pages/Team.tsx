@@ -100,8 +100,9 @@ export default function Team() {
 
     try {
       await API.delete(`/team/${staffId}`);
-      showToast(status === 'active' ? 'Staff member removed successfully.' : 'Invitation cancelled successfully.', 'success');
       await loadTeam();
+      // Confirm only after the refreshed list has removed the invite/staff row.
+      showToast(status === 'active' ? 'Staff member removed successfully.' : 'Invitation cancelled successfully.', 'success');
     } catch (error: any) {
       showToast(error.response?.data?.message || 'Could not process request.', 'error');
     }
