@@ -18,7 +18,6 @@ export default function Team() {
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
   const [assignedStaff, setAssignedStaff] = useState('');
-  const [taskLoading, setTaskLoading] = useState(false);
   const [assigningTask, setAssigningTask] = useState(false);
 
   // Client Search & Selection States for Tasks (Multiple support)
@@ -58,8 +57,6 @@ export default function Team() {
       }
     } catch (error) {
       // Silent catch
-    } finally {
-      setTaskLoading(false);
     }
   };
 
