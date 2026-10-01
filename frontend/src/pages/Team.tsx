@@ -33,14 +33,18 @@ export default function Team() {
       setMembers(response.data.members || []); 
       setSeatLimit(response.data.seatLimit || 5); 
 
-      // Fetch clients for task assignment
+      // Robust client fetch logic (handles both array and object response)
       const clientRes = await API.get('/clients');
-      setClients(clientRes.data.clients || []);
+      const fetchedClients = Array.isArray(clientRes.data) 
+        ? clientRes.data 
+        : (clientRes.data.clients || clientRes.data.data || []);
+      setClients(fetchedClients);
     }
     catch (error: any) { 
       showToast(error.response?.data?.message || 'Could not load your team.', 'error'); 
       navigate('/'); 
     }
+
   };
 
   const loadTasks = async () => {
