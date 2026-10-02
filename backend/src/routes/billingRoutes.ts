@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { createInvoice, deleteInvoice, getInvoices, updateInvoiceStatus } from '../controllers/billingController';
-import { protect } from '../middleware/authMiddleware';
+import { getInvoices, createInvoice, markPaid, deleteInvoice } from '../controllers/billingController';
 
 const router = Router();
 
-router.get('/:firmId', protect, getInvoices);
-router.post('/', protect, createInvoice);
-router.put('/:id', protect, updateInvoiceStatus);
-router.delete('/:id', protect, deleteInvoice);
+router.get('/', getInvoices);
+router.post('/create', createInvoice);
+router.patch('/:id/pay', markPaid);
+router.delete('/:id', deleteInvoice);
 
 export default router;

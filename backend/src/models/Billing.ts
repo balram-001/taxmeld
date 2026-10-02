@@ -1,22 +1,42 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IBilling extends Document {
-  firmId: string;
-  clientId: mongoose.Types.ObjectId;
-  title: string;
+export interface ILineItem {
+  description: string;
   amount: number;
-  status: 'Pending' | 'Paid' | 'Overdue';
+}
+
+export interface IBilling extends Document {
+  firmId: mongoose.Types.ObjectId;
+  clientId: mongoose.Types.ObjectId;
+  clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientPan?: string;
+  invoiceNumber: string;
+  lineItems: ILineItem[];
+  totalAmount: number;
+  status: 'Pending' | 'Paid';
   dueDate?: Date;
   createdAt: Date;
 }
 
-const billingSchema = new Schema<IBilling>({
-  firmId: { type: String, required: true },
+const LineItemSchema = new Schema<ILineItem>({
+  description: { type: String, required: true },
+  amount: { type: Number, required: true }
+});
+
+const BillingSchema = new Schema<IBilling>({
+  firmId: { type: Schema.Types.ObjectId, ref: 'Firm', required: true },
   clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
-  title: { type: String, required: true },
-  amount: { type: Number, required: true },
-  status: { type: String, enum: ['Pending', 'Paid', 'Overdue'], default: 'Pending' },
+  clientName: { type: String, required: true },
+  clientEmail: { type: String },
+  clientPhone: { type: String },
+  clientPan: { type: String },
+  invoiceNumber: { type: String, required: true },
+  lineItems: [LineItemSchema],
+  totalAmount: { type: Number, required: true },
+  status: { type: String, enum: ['Pending', 'Paid'], default: 'Pending' },
   dueDate: { type: Date }
 }, { timestamps: true });
 
-export const Billing = mongoose.model<IBilling>('Billing', billingSchema);
+export default mongoose.model<IBilling>('Billing', BillingSchema);
