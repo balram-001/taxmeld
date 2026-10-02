@@ -18,6 +18,7 @@ import demoLeadRoutes from './routes/demoLeadRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import teamRoutes from './routes/teamRoutes';
 import rateLimit from 'express-rate-limit';
+import billingRoutes from './routes/billingRoutes';
 
 
 dotenv.config();
@@ -108,6 +109,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/demo-leads', demoLeadRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/team', teamRoutes);
+app.use('/api/billing', billingRoutes);
 
 app.use((error: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (error instanceof multer.MulterError) {

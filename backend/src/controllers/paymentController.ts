@@ -19,13 +19,19 @@ export const handleMacrodroidWebhook = async (req: Request, res: Response): Prom
     }
 
     const lowerSms = smsText.toLowerCase();
-
+    const normalizedSms = lowerSms.replace(/,/g, '');
     const isCredited = lowerSms.includes('credited') || lowerSms.includes('received');
-    const isStarterPayment = lowerSms.includes('299');
-    const isProfessionalPayment = lowerSms.includes('399');
-    const containsAmount = isStarterPayment || isProfessionalPayment;
+    // Largest amounts first: a loose `includes('399')` would incorrectly
+    // classify ₹3,999 as a ₹399 plan.
+    const plans = [
+      { amount: '5999', planType: 'team_599_annual', durationDays: 365 },
+      { amount: '3999', planType: 'solo_399_annual', durationDays: 365 },
+      { amount: '599', planType: 'team_599_monthly', durationDays: 30 },
+      { amount: '399', planType: 'solo_399_monthly', durationDays: 30 },
+    ];
+    const matchedPlan = plans.find((plan) => new RegExp(`(^|\\D)${plan.amount}(?=\\D|$)`).test(normalizedSms));
 
-    if (isCredited && containsAmount) {
+    if (isCredited && matchedPlan) {
       const user = await User.findOne({ email: userEmail.toLowerCase() });
 
       if (!user) {
@@ -34,8 +40,8 @@ export const handleMacrodroidWebhook = async (req: Request, res: Response): Prom
       }
 
       user.subscriptionStatus = 'active';
-      user.planType = isProfessionalPayment ? 'professional_399' : 'starter_299';
-      user.subscriptionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 Days active
+      user.planType = matchedPlan.planType;
+      user.subscriptionExpiresAt = new Date(Date.now() + matchedPlan.durationDays * 24 * 60 * 60 * 1000);
       await user.save();
 
       res.status(200).json({ message: 'Payment verified and subscription activated successfully!' });

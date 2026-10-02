@@ -5,7 +5,7 @@ import { BACKEND_URL } from '../config';
 import { useToast } from '../toast';
 import { 
   Shield, Plus, Search, ExternalLink, X, 
-  MessageCircle, Loader2, FileText, Download, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles, ArrowLeft, Users
+  MessageCircle, Loader2, FileText, Download, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles, ArrowLeft, Users, DollarSign
 } from 'lucide-react';
 
 const AVAILABLE_SERVICES = [
@@ -378,9 +378,9 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="text-xl font-extrabold text-emerald-600">₹299</span>
+                  <span className="text-xl font-extrabold text-emerald-600">₹399</span>
                   <span className="text-[10px] text-slate-500 font-medium"> / month</span>
-                  <p className="text-[9px] font-bold text-slate-500">or ₹399 / month</p>
+                  <p className="text-[9px] font-bold text-slate-500">Team plan from ₹599 / month</p>
                 </div>
               </div>
               <ul className="space-y-2 text-xs text-slate-600 pt-1">
@@ -420,34 +420,48 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
           </div>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          {!isDemo && userData?.role !== 'staff' && <button
-            type="button"
-            onClick={() => navigate('/team')}
-            className="w-full sm:w-auto border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-800 font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
-          >
-            <Users size={17} /> Team Staff
-          </button>}
-        <button
-          onClick={() => {
-            if (isDemo && clients.length >= 1) {
-              onDemoLimit?.();
-              return;
-            }
-            if (daysLeft <= 0 || userData?.subscriptionStatus === 'expired') {
-              setShowUpgradeModal(true);
-              return;
-            }
-            if (userData?.subscriptionStatus === 'trial' && clients.length >= 20) {
-              setShowUpgradeModal(true);
-              return;
-            }
-            setIsModalOpen(true);
-          }}
-          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
-        >
-          <Plus size={18} /> Add New Client
-        </button>
-        </div>
+  {!isDemo && userData?.role !== 'staff' && (
+    <button
+      type="button"
+      onClick={() => navigate('/team')}
+      className="w-full sm:w-auto border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-800 font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
+    >
+      <Users size={17} /> Team Staff
+    </button>
+  )}
+
+  {!isDemo && userData?.role !== 'staff' && (
+    <button
+      type="button"
+      onClick={() => navigate('/billing')}
+      className="w-full sm:w-auto border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-800 font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
+    >
+      <DollarSign size={17} /> Billing
+    </button>
+  )}
+
+  <button
+    type="button"
+    onClick={() => {
+      if (isDemo && clients.length >= 1) {
+        onDemoLimit?.();
+        return;
+      }
+      if (daysLeft <= 0 || userData?.subscriptionStatus === 'expired') {
+        setShowUpgradeModal(true);
+        return;
+      }
+      if (userData?.subscriptionStatus === 'trial' && clients.length >= 20) {
+        setShowUpgradeModal(true);
+        return;
+      }
+      setIsModalOpen(true);
+    }}
+    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
+  >
+    <Plus size={18} /> Add New Client
+  </button>
+</div>
       </div>
 
       <div className="relative">

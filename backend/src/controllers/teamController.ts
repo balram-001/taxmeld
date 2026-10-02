@@ -68,7 +68,8 @@ export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void
     if (!ownerId || !(await isWorkspaceOwner(ownerId))) { res.status(403).json({ message: 'Only the CA owner can invite staff.' }); return; }
     if (!/^\S+@\S+\.\S+$/.test(email)) { res.status(400).json({ message: 'Enter a valid staff email address.' }); return; }
     const owner = await User.findById(ownerId).select('name subscriptionStatus planType');
-    if (!owner || owner.subscriptionStatus !== 'active' || owner.planType !== 'professional_399') { res.status(403).json({ message: 'The ₹399 CA Professional plan is required to add up to 5 staff members.' }); return; }
+    const teamPlanTypes = ['team_599_monthly', 'team_599_annual', 'professional_399']; // professional_399 supports existing paid users
+    if (!owner || owner.subscriptionStatus !== 'active' || !teamPlanTypes.includes(owner.planType)) { res.status(403).json({ message: 'The ₹599 Team CA plan is required to add up to 5 staff members.' }); return; }
     const linkedElsewhere = await User.findOne({ email }).select('workspaceOwnerId role');
     if (linkedElsewhere && (linkedElsewhere.role !== 'staff' || String(linkedElsewhere.workspaceOwnerId || '') !== String(ownerId))) {
       res.status(400).json({ message: 'This email is already linked to another TaxMeld account.' });
