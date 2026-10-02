@@ -27,13 +27,10 @@ export default function Billing() {
   const [clients, setClients] = useState<any[]>([]);
   const [firmId, setFirmId] = useState('');
   
-  // View Toggle: 'list' or 'create'
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
-  
-  // Form State
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState<any>(null);
-  const [lineItems, setLineItems] = useState<LineItem[]>([{ description: 'ITR Filing & Consultation', amount: '' }]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([{ description: '', amount: '' }]);
   const [dueDate, setDueDate] = useState('');
   const [toast, setToast] = useState('');
 
@@ -52,7 +49,7 @@ export default function Billing() {
         fetchClients(currentFirmId, token);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error loading initial data:", err);
     }
   };
 
@@ -61,20 +58,24 @@ export default function Billing() {
       const res = await axios.get(`/api/billing?firmId=${fId}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) setInvoices(res.data.invoices);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching invoices:", err);
     }
   };
 
   const fetchClients = async (fId: string, token: string | null) => {
     try {
       const res = await axios.get(`/api/clients?firmId=${fId}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) setClients(res.data.clients || res.data);
+      console.log("Fetched Clients API Response:", res.data);
+      if (res.data.success) {
+        setClients(res.data.clients || res.data.data || []);
+      } else if (Array.isArray(res.data)) {
+        setClients(res.data);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching clients:", err);
     }
   };
 
-  // Filter clients based on Name, PAN, or Phone
   const filteredClients = clients.filter(c => 
     c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
     c.panNumber?.toLowerCase().includes(clientSearch.toLowerCase()) ||
@@ -99,7 +100,7 @@ export default function Billing() {
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClient) {
-      alert('Please select a client first.');
+      alert('Please search and select a client first.');
       return;
     }
 
@@ -115,14 +116,14 @@ export default function Billing() {
       if (res.data.success) {
         setToast('Detailed Invoice created successfully!');
         setViewMode('list');
-        setLineItems([{ description: 'ITR Filing & Consultation', amount: '' }]);
+        setLineItems([{ description: '', amount: '' }]);
         setSelectedClient(null);
         setClientSearch('');
         fetchInvoices(firmId, token);
         setTimeout(() => setToast(''), 4000);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error creating invoice:", err);
     }
   };
 
@@ -176,7 +177,7 @@ export default function Billing() {
           </div>
         )}
 
-        {/* VIEW MODE: CREATE DETAILED INVOICE (Full Spacious Page View) */}
+        {/* VIEW MODE: CREATE DETAILED INVOICE */}
         {viewMode === 'create' ? (
           <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm space-y-8">
             <div>
@@ -215,7 +216,7 @@ export default function Billing() {
                       <Search className="absolute left-3 top-3 text-slate-400" size={18} />
                       <input 
                         type="text"
-                        placeholder="Type client name, PAN or mobile number to search..."
+                        placeholder="Type client name, PAN or mobile number to search (e.g. Balram)..."
                         value={clientSearch}
                         onChange={(e) => setClientSearch(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -225,7 +226,7 @@ export default function Billing() {
                     {clientSearch.trim().length > 0 && (
                       <div className="bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto divide-y divide-slate-100">
                         {filteredClients.length === 0 ? (
-                          <div className="p-3 text-xs text-slate-500 text-center">No clients found matching "{clientSearch}"</div>
+                          <div className="p-3 text-xs text-slate-500 text-center">No clients found matching "{clientSearch}". (Total clients loaded: {clients.length})</div>
                         ) : (
                           filteredClients.map((c) => (
                             <div 
@@ -261,7 +262,7 @@ export default function Billing() {
                     <div key={index} className="flex gap-3 items-center">
                       <input 
                         type="text" 
-                        placeholder="Service Description (e.g. ITR-3 Filing & Capital Gain Computation)" 
+                        placeholder="Service Description (e.g. ITR-3 Filing Fee)" 
                         value={item.description}
                         onChange={(e) => handleLineItemChange(index, 'description', e.target.value)}
                         required
