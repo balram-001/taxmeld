@@ -87,6 +87,8 @@ export default function ComplianceCalendar() {
 
     try {
       const token = localStorage.getItem('token');
+      console.log('Sending compliance data:', { firmId, title, category, dueDate, description });
+      
       const res = await axios.post('/api/compliance/create', {
         firmId,
         title,
@@ -105,8 +107,8 @@ export default function ComplianceCalendar() {
         setTimeout(() => setToast(''), 4000);
       }
     } catch (err: any) {
-      console.error(err);
-      alert(err.response?.data?.message || 'Failed to save deadline.');
+      console.error('Full backend error response:', err.response?.data);
+      alert(`Failed to save deadline: ${err.response?.data?.error || err.response?.data?.message || err.message}`);
     }
   };
 
