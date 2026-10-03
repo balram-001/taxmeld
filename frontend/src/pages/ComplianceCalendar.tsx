@@ -87,9 +87,8 @@ export default function ComplianceCalendar() {
 
     try {
       const token = localStorage.getItem('token');
-      console.log('Sending compliance data:', { firmId, title, category, dueDate, description });
-      
-      const res = await axios.post('/api/compliance/create', {
+      // `/api/compliance/create` ki jagah sirf `/api/compliance` use karein (POST method ke liye)
+      const res = await axios.post('/api/compliance', {
         firmId,
         title,
         category,
