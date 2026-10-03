@@ -33,14 +33,23 @@ export default function ComplianceCalendar() {
   const loadInitialData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const teamRes = await axios.get('/api/team', { headers: { Authorization: `Bearer ${token}` } });
-      const currentFirmId = teamRes.data.members?.[0]?.firmId?._id || teamRes.data.members?.[0]?.firmId;
+      // Firm ID fetch karne ke liye profile ya team API use karein
+      const profileRes = await axios.get('/api/auth/profile', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null }));
+      let currentFirmId = profileRes.data?.firmId;
+
+      if (!currentFirmId) {
+        const teamRes = await axios.get('/api/team', { headers: { Authorization: `Bearer ${token}` } });
+        currentFirmId = teamRes.data.members?.[0]?.firmId?._id || teamRes.data.members?.[0]?.firmId;
+      }
+
       if (currentFirmId) {
         setFirmId(currentFirmId);
         fetchCompliances(currentFirmId, token);
+      } else {
+        console.error('Firm ID not found for compliance calendar');
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error loading initial data:', err);
     }
   };
 
