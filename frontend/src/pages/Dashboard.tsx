@@ -33,7 +33,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   // Compliance Urgent Banner States
   const [urgentDeadlines, setUrgentDeadlines] = useState<any[]>([]);
   const [showAlertBanner, setShowAlertBanner] = useState(false);
-  const [firmId, setFirmId] = useState('');
+
 
   // Trial and subscription states
   const [userData, setUserData] = useState<any>(null);
@@ -105,7 +105,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
 
       const currentFirmId = teamRes.data?.members?.[0]?.firmId?._id || teamRes.data?.members?.[0]?.firmId;
       if (currentFirmId) {
-        setFirmId(currentFirmId);
+        
         checkUpcomingDeadlines(currentFirmId);
       }
 
