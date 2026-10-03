@@ -30,6 +30,11 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
 
+  // Compliance Urgent Banner States
+  const [urgentDeadlines, setUrgentDeadlines] = useState<any[]>([]);
+  const [showAlertBanner, setShowAlertBanner] = useState(false);
+  const [firmId, setFirmId] = useState('');
+
   // Trial and subscription states
   const [userData, setUserData] = useState<any>(null);
   const [daysLeft, setDaysLeft] = useState<number>(14);
@@ -40,8 +45,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   const [newReqName, setNewReqName] = useState('');
   const [newReqHint, setNewReqHint] = useState('');
 
-  // Legacy modal state is retained for existing deep links; all normal client
-  // management now opens the dedicated client workspace.
   const [activeClient, setActiveClient] = useState<any>(null);
   const [clientTasks, setClientTasks] = useState<any[]>([]);
   const [loadingTasks] = useState(false);
@@ -57,7 +60,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   const [previewDocName, setPreviewDocName] = useState('');
   const [clientToDelete, setClientToDelete] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
-
 
   const [formData, setFormData] = useState({
     name: '',
@@ -81,9 +83,10 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     }
 
     try {
-      const [profileRes, clientsRes] = await Promise.all([
+      const [profileRes, clientsRes, teamRes] = await Promise.all([
         API.get('/auth/profile').catch(() => ({ data: null })),
-        API.get('/clients')
+        API.get('/clients'),
+        API.get('/team').catch(() => ({ data: { members: [] } }))
       ]);
 
       if (profileRes.data) {
@@ -100,6 +103,12 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         }
       }
 
+      const currentFirmId = teamRes.data?.members?.[0]?.firmId?._id || teamRes.data?.members?.[0]?.firmId;
+      if (currentFirmId) {
+        setFirmId(currentFirmId);
+        checkUpcomingDeadlines(currentFirmId);
+      }
+
       setClients(clientsRes.data || []);
     } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
@@ -112,6 +121,30 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
       }
     } finally {
       setPageLoading(false);
+    }
+  };
+
+  const checkUpcomingDeadlines = async (fId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await API.get(`/compliance?firmId=${fId}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        const today = new Date();
+        const urgent = res.data.compliances.filter((item: any) => {
+          if (item.status === 'Completed') return false;
+          const due = new Date(item.dueDate);
+          const diffTime = due.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return diffDays <= 3;
+        });
+
+        if (urgent.length > 0) {
+          setUrgentDeadlines(urgent);
+          setShowAlertBanner(true);
+        }
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -325,6 +358,38 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6">
+      
+      {/* URGENT COMPLIANCE DEADLINE ALERT BANNER */}
+      {showAlertBanner && urgentDeadlines.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 shadow-sm flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-100 text-amber-800 rounded-lg mt-0.5">
+              <Clock size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-amber-900">Urgent Tax Deadlines Approaching!</h3>
+              <p className="text-xs text-amber-700 mt-0.5">Aapke paas kuch aisi compliances hain jinki due date bilkul paas hai:</p>
+              <ul className="mt-2 space-y-1">
+                {urgentDeadlines.map((item) => (
+                  <li key={item._id} className="text-xs font-bold text-amber-950 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-rose-600"></span>
+                    {item.title} — Due on: {new Date(item.dueDate).toLocaleDateString()}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/compliance')} className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg transition cursor-pointer">
+              View Calendar
+            </button>
+            <button onClick={() => setShowAlertBanner(false)} className="text-amber-700 hover:text-amber-900 text-xs font-bold cursor-pointer">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {userData && userData.subscriptionStatus === 'trial' && (
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -420,61 +485,62 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
           </div>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-  {!isDemo && userData?.role !== 'staff' && (
-    <button
-      type="button"
-      onClick={() => navigate('/team')}
-      className="w-full sm:w-auto border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-800 font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
-    >
-      <Users size={17} /> Team Staff
-    </button>
-  )}
+          {!isDemo && userData?.role !== 'staff' && (
+            <button
+              type="button"
+              onClick={() => navigate('/team')}
+              className="w-full sm:w-auto border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-800 font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
+            >
+              <Users size={17} /> Team Staff
+            </button>
+          )}
 
-  {!isDemo && userData?.role !== 'staff' && (
-    <button
-      type="button"
-      onClick={() => navigate('/billing')}
-      className="w-full sm:w-auto border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-800 font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
-    >
-      <DollarSign size={17} /> Billing
-    </button>
-  )}
-<button 
-  onClick={() => navigate('/timetracking')} 
-  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2.5 rounded-lg border border-slate-300 shadow-sm transition text-sm cursor-pointer"
->
-  <Clock size={16} /> Time Tracking
-</button>
+          {!isDemo && userData?.role !== 'staff' && (
+            <button
+              type="button"
+              onClick={() => navigate('/billing')}
+              className="w-full sm:w-auto border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-800 font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
+            >
+              <DollarSign size={17} /> Billing
+            </button>
+          )}
+          
+          <button 
+            onClick={() => navigate('/timetracking')} 
+            className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2.5 rounded-lg border border-slate-300 shadow-sm transition text-sm cursor-pointer"
+          >
+            <Clock size={16} /> Time Tracking
+          </button>
 
-<button 
-  onClick={() => navigate('/compliance')} 
-  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2.5 rounded-lg border border-slate-300 shadow-sm transition text-sm cursor-pointer"
->
-  <Calendar size={16} /> Compliance Calendar
-</button>
+          <button 
+            onClick={() => navigate('/compliance')} 
+            className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2.5 rounded-lg border border-slate-300 shadow-sm transition text-sm cursor-pointer"
+          >
+            <Calendar size={16} /> Compliance Calendar
+          </button>
 
-  <button
-    type="button"
-    onClick={() => {
-      if (isDemo && clients.length >= 1) {
-        onDemoLimit?.();
-        return;
-      }
-      if (daysLeft <= 0 || userData?.subscriptionStatus === 'expired') {
-        setShowUpgradeModal(true);
-        return;
-      }
-      if (userData?.subscriptionStatus === 'trial' && clients.length >= 20) {
-        setShowUpgradeModal(true);
-        return;
-      }
-      setIsModalOpen(true);
-    }}
-    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
-  >
-    <Plus size={18} /> Add New Client
-  </button>
-</div>
+          <button
+            type="button"
+            onClick={() => {
+              if (isDemo && clients.length >= 1) {
+                onDemoLimit?.();
+                return;
+              }
+              if (daysLeft <= 0 || userData?.subscriptionStatus === 'expired') {
+                setShowUpgradeModal(true);
+                return;
+              }
+              if (userData?.subscriptionStatus === 'trial' && clients.length >= 20) {
+                setShowUpgradeModal(true);
+                return;
+              }
+              setIsModalOpen(true);
+            }}
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition text-sm"
+          >
+            <Plus size={18} /> Add New Client
+          </button>
+        </div>
       </div>
 
       <div className="relative">
@@ -488,7 +554,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         />
       </div>
 
-      {/* Desktop client list: one live row per client, with no action clutter. */}
       <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {filteredClients.length === 0 ? (
           <div className="p-10 text-center text-sm text-slate-500">
@@ -503,33 +568,32 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
               const hasNewClientUpload = Boolean(client.lastClientUploadAt) && (!client.lastFinalDeliveryAt || new Date(client.lastClientUploadAt) > new Date(client.lastFinalDeliveryAt));
               const isCompleted = Boolean(client.lastFinalDeliveryAt) && !hasNewClientUpload;
               return (
-            <button
-              type="button"
-              key={client._id}
-              onClick={() => navigate(`/client/${client._id}`)}
-              className="group grid w-full grid-cols-[90px_minmax(180px,1fr)_150px_180px_170px_30px] items-center gap-4 px-5 py-4 text-left hover:bg-emerald-50/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500/30 transition cursor-pointer"
-            >
-              <span className="text-sm font-extrabold text-slate-700">#{clients.findIndex((item) => item._id === client._id) + 1}</span>
-              <div className="min-w-0">
-                <h3 className="truncate text-sm font-extrabold text-slate-900 group-hover:text-emerald-700">{client.name}</h3>
-                <p className="mt-1 text-xs text-slate-500">{client.phone || client.whatsappNumber || 'No mobile number'}</p>
-              </div>
-              <span className="font-mono text-xs font-bold text-emerald-700">{client.panNumber}</span>
-              <div>
-                {hasNewClientUpload ? <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800">Documents uploaded</span> : <span className="text-xs font-semibold text-slate-400">No new upload</span>}
-              </div>
-              <div>
-                {isCompleted ? <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Completed</span> : <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">Pending</span>}
-              </div>
-              <span className="text-lg font-bold text-emerald-700" aria-hidden="true">→</span>
-            </button>
+                <button
+                  type="button"
+                  key={client._id}
+                  onClick={() => navigate(`/client/${client._id}`)}
+                  className="group grid w-full grid-cols-[90px_minmax(180px,1fr)_150px_180px_170px_30px] items-center gap-4 px-5 py-4 text-left hover:bg-emerald-50/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500/30 transition cursor-pointer"
+                >
+                  <span className="text-sm font-extrabold text-slate-700">#{clients.findIndex((item) => item._id === client._id) + 1}</span>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-extrabold text-slate-900 group-hover:text-emerald-700">{client.name}</h3>
+                    <p className="mt-1 text-xs text-slate-500">{client.phone || client.whatsappNumber || 'No mobile number'}</p>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-emerald-700">{client.panNumber}</span>
+                  <div>
+                    {hasNewClientUpload ? <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800">Documents uploaded</span> : <span className="text-xs font-semibold text-slate-400">No new upload</span>}
+                  </div>
+                  <div>
+                    {isCompleted ? <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Completed</span> : <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">Pending</span>}
+                  </div>
+                  <span className="text-lg font-bold text-emerald-700" aria-hidden="true">→</span>
+                </button>
               );
             })}
           </div>
         )}
       </div>
 
-      {/* Mobile client cards open the dedicated ClientDetail workflow screen. */}
       <div className="md:hidden space-y-3">
         {filteredClients.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-xl p-7 text-center text-sm text-slate-500">
@@ -561,7 +625,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         )}
       </div>
 
-      {/* Client Delete Confirmation Modal */}
       {clientToDelete && (
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
@@ -596,7 +659,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         </div>
       )}
 
-      {/* Workflow Modal */}
       {activeClient && (
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto space-y-6">
@@ -734,7 +796,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         </div>
       )}
 
-      {/* Drawer Preview */}
       {drawerClient && (
         <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-xs flex items-end md:items-stretch justify-end">
           <div className="w-full md:max-w-lg bg-white max-h-[85vh] md:max-h-full h-full rounded-t-2xl md:rounded-none shadow-2xl border-t md:border-t-0 md:border-l border-slate-200 flex flex-col">
@@ -823,7 +884,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         </div>
       )}
 
-      {/* Document Preview Modal */}
       {previewDocUrl && (() => {
         const rawName = previewDocName || previewDocUrl;
         const ext = rawName.split('.').pop()?.toLowerCase() || '';
@@ -893,7 +953,6 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         );
       })()}
 
-      {/* Add Client Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
