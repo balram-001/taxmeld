@@ -19,7 +19,6 @@ export default function ComplianceCalendar() {
   
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
   
-  // Form State
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<'GST' | 'Income Tax' | 'TDS' | 'ROC' | 'Other'>('GST');
   const [dueDate, setDueDate] = useState('');
@@ -33,7 +32,6 @@ export default function ComplianceCalendar() {
   const loadInitialData = async () => {
     try {
       const token = localStorage.getItem('token');
-      // Firm ID fetch karne ke liye profile ya team API use karein
       const profileRes = await axios.get('/api/auth/profile', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null }));
       let currentFirmId = profileRes.data?.firmId;
 
@@ -45,11 +43,9 @@ export default function ComplianceCalendar() {
       if (currentFirmId) {
         setFirmId(currentFirmId);
         fetchCompliances(currentFirmId, token);
-      } else {
-        console.error('Firm ID not found for compliance calendar');
       }
     } catch (err) {
-      console.error('Error loading initial data:', err);
+      console.error(err);
     }
   };
 
@@ -64,6 +60,11 @@ export default function ComplianceCalendar() {
 
   const handleCreateCompliance = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!firmId) {
+      alert('Firm ID is missing. Please refresh.');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post('/api/compliance/create', {
@@ -83,8 +84,9 @@ export default function ComplianceCalendar() {
         fetchCompliances(firmId, token);
         setTimeout(() => setToast(''), 4000);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(err.response?.data?.message || 'Failed to save deadline.');
     }
   };
 
@@ -119,7 +121,6 @@ export default function ComplianceCalendar() {
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-5xl mx-auto space-y-6">
         
-        {/* Header Navigation */}
         <div className="flex items-center justify-between">
           <button onClick={() => viewMode === 'create' ? setViewMode('list') : navigate('/dashboard')} className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-emerald-700 transition cursor-pointer">
             <ArrowLeft size={18} /> {viewMode === 'create' ? 'Back to Calendar' : 'Back to Dashboard'}
@@ -131,14 +132,12 @@ export default function ComplianceCalendar() {
           )}
         </div>
 
-        {/* Toast Notification */}
         {toast && (
           <div className="p-4 bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-lg text-sm font-bold flex items-center justify-between shadow-sm">
             <span>{toast}</span>
           </div>
         )}
 
-        {/* VIEW MODE: CREATE COMPLIANCE */}
         {viewMode === 'create' ? (
           <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm space-y-8">
             <div>
@@ -202,7 +201,6 @@ export default function ComplianceCalendar() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                 <button type="button" onClick={() => setViewMode('list')} className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-100 cursor-pointer">
                   Cancel
@@ -215,7 +213,6 @@ export default function ComplianceCalendar() {
             </form>
           </div>
         ) : (
-          /* VIEW MODE: COMPLIANCE LIST */
           <div className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
