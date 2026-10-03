@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, Plus, Trash2, Calendar, CheckCircle, AlertCircle, Tag } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calendar, CheckCircle, Tag } from 'lucide-react';
 
 interface ComplianceItem {
   _id: string;
