@@ -23,6 +23,7 @@ import StaffWorkReport from './pages/StaffWorkReport';
 import API from './api';
 import Billing from './pages/Billing';
 import TimeTracking from './pages/TimeTracking';
+import ComplianceCalendar from './pages/ComplianceCalendar';
 
 function ClientUploadNotifications({ enabled }: { enabled: boolean }) {
   const checkingRef = useRef(false);
@@ -235,6 +236,7 @@ export default function App() {
             <Route path="/team" element={<Team />} />
             <Route path="/billing" element={<Billing />} />
             <Route path="/timetracking" element={<TimeTracking />} />
+            <Route path="/compliance" element={<ComplianceCalendar />} />
             <Route path="/team/staff/:id" element={isAuthenticated && !isStaffUser ? <StaffWorkReport /> : <Navigate to="/" replace />} />
             <Route path="/team-access" element={<TeamAccess onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/team-login" element={<TeamLogin onLogin={() => setIsAuthenticated(true)} />} />
