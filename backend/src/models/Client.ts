@@ -17,6 +17,8 @@ export interface IClient extends Document {
   customRequirements?: ICustomRequirement[];
   lastClientUploadAt?: Date;
   lastFinalDeliveryAt?: Date;
+  lastDocumentReminderAt?: Date;
+  documentReminderCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +41,10 @@ const ClientSchema: Schema = new Schema(
     ],
     lastClientUploadAt: { type: Date },
     lastFinalDeliveryAt: { type: Date },
+    // Reminder delivery is deliberately tracked in MongoDB so a Vercel
+    // restart can never cause a client to receive duplicate daily emails.
+    lastDocumentReminderAt: { type: Date },
+    documentReminderCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

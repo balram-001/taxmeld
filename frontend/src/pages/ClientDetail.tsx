@@ -6,6 +6,7 @@ import { resolveDownloadFileUrl, resolveFileUrl, uploadFilesDirectly } from '../
 import {
   ArrowLeft, CheckCheck, Download, ExternalLink, Eye, FileText,
   Loader2, SlidersHorizontal, Upload, Trash2,
+  MessageSquareWarning,
 } from 'lucide-react';
 
 const ClientDetail: React.FC = () => {
@@ -23,6 +24,9 @@ const ClientDetail: React.FC = () => {
   const [addingFiles, setAddingFiles] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingClient, setDeletingClient] = useState(false);
+  const [reuploadTask, setReuploadTask] = useState<any>(null);
+  const [reuploadReason, setReuploadReason] = useState('');
+  const [sendingReupload, setSendingReupload] = useState(false);
   const uploadInFlight = useRef(false);
 
   const loadWorkflow = async (trackingToken: string) => {
@@ -137,6 +141,20 @@ const ClientDetail: React.FC = () => {
     }
   };
 
+  const sendReuploadRequest = async () => {
+    if (!reuploadTask || reuploadReason.trim().length < 3) return;
+    setSendingReupload(true);
+    try {
+      await API.post(`/tasks/reupload/${reuploadTask._id}`, { reason: reuploadReason.trim() });
+      showToast('Re-upload request sent to the client.', 'success');
+      setReuploadTask(null);
+      setReuploadReason('');
+      void loadWorkflow(client.trackingToken);
+    } catch (error: any) {
+      showToast(error.response?.data?.message || 'Could not send the re-upload request.', 'error');
+    } finally { setSendingReupload(false); }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center gap-4">
@@ -218,7 +236,8 @@ const ClientDetail: React.FC = () => {
                 <div className="space-y-3">
                   {clientDocumentTasks.map((task) => (
                     <div key={task._id} className="rounded-xl border border-sky-100 bg-white p-3">
-                      <p className="mb-2 text-xs font-extrabold text-slate-800">{task.serviceCategory || 'Client documents'}</p>
+                      <div className="mb-2 flex items-center justify-between gap-2"><p className="text-xs font-extrabold text-slate-800">{task.serviceCategory || 'Client documents'}</p><button type="button" onClick={() => { setReuploadTask(task); setReuploadReason(task.reuploadReason || ''); }} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 hover:bg-amber-100"><MessageSquareWarning size={12} /> Request re-upload</button></div>
+                      {task.reuploadReason && <p className="mb-2 rounded-md bg-amber-50 px-2 py-1.5 text-[10px] font-semibold text-amber-900">Waiting for replacement: {task.reuploadReason}</p>}
                       <div className="space-y-2">
                         {(task.files || []).map((file: any, index: number) => (
                           <div key={`${file.fileUrl}-${index}`} className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-slate-50 p-2.5 sm:flex-row sm:items-center sm:justify-between">
@@ -275,6 +294,7 @@ const ClientDetail: React.FC = () => {
         )}
 
         {showDeleteConfirm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600"><Trash2 size={22} /></div><h2 className="mt-4 text-lg font-extrabold text-slate-900">Delete this client?</h2><p className="mt-2 text-sm leading-6 text-slate-600">This will permanently remove {client.name}, their workflow and all linked document records. This cannot be undone.</p><div className="mt-6 flex gap-2"><button disabled={deletingClient} onClick={() => setShowDeleteConfirm(false)} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-200">Cancel</button><button disabled={deletingClient} onClick={deleteClient} className="flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-rose-700 disabled:bg-rose-300">{deletingClient ? 'Deleting...' : 'Yes, Delete'}</button></div></div></div>}
+        {reuploadTask && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start gap-3"><div className="rounded-xl bg-amber-50 p-2 text-amber-700"><MessageSquareWarning size={20} /></div><div><h2 className="text-lg font-extrabold text-slate-900">Request a clearer document</h2><p className="mt-1 text-xs leading-5 text-slate-500">Tell {client.name} exactly what needs correction. They will receive an email now and secure upload reminders every 3 days until they submit again.</p></div></div><label className="mt-5 block text-xs font-bold text-slate-700">Reason for re-upload<textarea autoFocus value={reuploadReason} onChange={(event) => setReuploadReason(event.target.value)} placeholder="Example: Bank statement is blurry. Please upload a clear PDF for April–March." className="mt-1.5 min-h-28 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-amber-500" /></label><div className="mt-5 flex gap-2"><button disabled={sendingReupload} onClick={() => setReuploadTask(null)} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700">Cancel</button><button disabled={sendingReupload || reuploadReason.trim().length < 3} onClick={sendReuploadRequest} className="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-amber-600 disabled:bg-slate-300">{sendingReupload ? 'Sending...' : 'Send re-upload request'}</button></div></div></div>}
       </div>
     </div>
   );

@@ -11,5 +11,8 @@
       "source": "/(.*)",
       "destination": "src/server.ts"
     }
+  ],
+  "crons": [
+    { "path": "/api/reminders/run", "schedule": "0 4 * * *" }
   ]
 }

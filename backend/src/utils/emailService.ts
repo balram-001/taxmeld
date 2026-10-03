@@ -63,6 +63,26 @@ export const sendClientWelcomeEmail = async (
   }
 };
 
+export const sendClientDocumentReminderEmail = async (
+  toEmail: string,
+  clientName: string,
+  trackingUrl: string,
+  caName?: string,
+  reason?: string
+) => {
+  if (!toEmail) return;
+  const heading = reason ? 'Your CA has requested a document re-upload' : 'Reminder: documents are still needed';
+  const detail = reason
+    ? `Your CA reviewed a document and requested an updated copy for this reason: <strong>${reason}</strong>`
+    : 'Your CA is waiting for the documents needed to continue your filing.';
+  await sendTransactionalEmail(toEmail, heading, `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:14px"><h2 style="color:#059669">${heading}</h2><p>Hello ${clientName},</p><p>${detail}</p><p>Please use the secure portal below to upload the requested document(s). You will verify your name, PAN and mobile number before opening it.</p><p style="text-align:center;margin:28px 0"><a href="${trackingUrl}" style="display:inline-block;background:#059669;color:#fff;padding:13px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Upload Documents Securely</a></p><p style="font-size:12px;color:#64748b">This is an automated reminder from ${caName || 'your CA'} through TaxMeld.</p></div>`, `${caName || 'TaxMeld'} | Document Reminder`);
+};
+
+export const sendInternalDocumentAlertEmail = async (toEmail: string, title: string, message: string, client: { name: string; panNumber: string }) => {
+  if (!toEmail) return;
+  await sendTransactionalEmail(toEmail, title, `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:14px"><h2 style="color:#0f172a">${title}</h2><p style="color:#475569">${message}</p><p style="font-size:13px;color:#64748b"><strong>Client:</strong> ${client.name}<br/><strong>PAN:</strong> ${client.panNumber}</p></div>`, 'TaxMeld Workflow');
+};
+
 // 3. Final ITR-V Deliverable Notification Mail
 export const sendFinalAckEmail = async (
   toEmail: string,

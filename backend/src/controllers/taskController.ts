@@ -14,6 +14,9 @@ import jwt from 'jsonwebtoken';
 import Task from '../models/Task';
 import { TeamInvite } from '../models/TeamInvite';
 import { isStaffAssignedToClient } from '../utils/staffAccess';
+import { notifyClientWorkspace } from '../utils/workflowNotifications';
+import { sendClientDocumentReminderEmail } from '../utils/emailService';
+import { sendWhatsAppDocumentReminder } from '../utils/whatsappService';
 
 type CloudFilePayload = { fileUrl: string; publicId: string; originalFileName: string; mimeType?: string };
 
@@ -258,10 +261,14 @@ export const uploadClientDocument = async (req: Request, res: Response): Promise
 
     docTask.files.push(...newFilesList);
     docTask.status = 'Completed';
+    docTask.reuploadReason = '';
+    docTask.reuploadRequestedAt = undefined;
     await docTask.save();
 
     // A newly added file must be explicitly submitted again by the client.
     client.lastClientUploadAt = undefined;
+    client.lastDocumentReminderAt = undefined;
+    client.documentReminderCount = 0;
     await client.save();
 
     await updateStage2Status(client._id, token);
@@ -287,12 +294,43 @@ export const submitClientDocuments = async (req: Request, res: Response): Promis
       return;
     }
     client.lastClientUploadAt = new Date();
+    client.lastDocumentReminderAt = undefined;
+    client.documentReminderCount = 0;
     await client.save();
     await updateStage2Status(client._id, token);
+    await notifyClientWorkspace(client, 'client_upload', 'Client documents submitted', `${client.name} (${client.panNumber}) has submitted documents for review.`, { emailOwner: true, emailStaff: true });
     res.status(200).json({ message: 'Documents submitted to your CA successfully.' });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Could not submit documents.' });
   }
+};
+
+/** Ask the client to replace an unclear/incorrect document and record why. */
+export const requestDocumentReupload = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reason = String(req.body.reason || '').trim();
+    if (reason.length < 3) { res.status(400).json({ message: 'Please write a clear re-upload reason.' }); return; }
+    const task = await DocumentTask.findById(req.params.taskId);
+    if (!task || task.documentType !== 'Client Document') { res.status(404).json({ message: 'Client document not found.' }); return; }
+    const client = await Client.findById(task.clientId);
+    if (!client || !(await canManageClientWorkflow(req.user?.id, String(client._id)))) { res.status(403).json({ message: 'You do not have access to this document.' }); return; }
+
+    task.status = 'Pending';
+    task.reuploadReason = reason;
+    task.reuploadRequestedAt = new Date();
+    task.remarks = `Re-upload requested: ${reason}`;
+    await task.save();
+    client.lastClientUploadAt = undefined;
+    client.lastDocumentReminderAt = undefined;
+    client.documentReminderCount = 0;
+    await client.save();
+
+    const trackingUrl = `${process.env.CLIENT_BASE_URL || 'https://taxmeld.vercel.app'}/track/${client.trackingToken}`;
+    if (client.email) await sendClientDocumentReminderEmail(client.email, client.name, trackingUrl, undefined, reason);
+    try { await sendWhatsAppDocumentReminder(client.whatsappNumber || client.phone, trackingUrl); } catch (error) { console.error('WhatsApp re-upload reminder failed:', error); }
+    await notifyClientWorkspace(client, 'reupload_request', 'Re-upload requested', `${client.name} needs to re-upload ${task.serviceCategory || 'a document'}: ${reason}`);
+    res.json({ message: 'Re-upload request sent to the client.', task });
+  } catch (error: any) { res.status(500).json({ message: error.message || 'Could not send re-upload request.' }); }
 };
 
 // 3. Delete a Single Uploaded File from a Service Category
@@ -405,6 +443,8 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
 
     // A final delivery resolves the pending client-document notification.
     client.lastFinalDeliveryAt = new Date();
+    client.lastDocumentReminderAt = undefined;
+    client.documentReminderCount = 0;
     await client.save();
 
     // Saare stages complete mark kar dein
@@ -412,6 +452,7 @@ export const uploadFinalAcknowledgement = async (req: AuthRequest, res: Response
       { clientId: client._id },
       { status: 'Completed' }
     );
+    await notifyClientWorkspace(client, 'final_delivery', 'Final document delivered', `Final ${client.serviceType || 'compliance'} document was delivered to ${client.name}.`, { emailStaff: true });
 
     // Auto-Send Final Acknowledgement Email to Client
     if (client.email) {

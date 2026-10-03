@@ -13,6 +13,8 @@ type Client = {
   lastFinalDeliveryAt?: string;
 };
 
+type NotificationItem = { _id: string; title: string; message: string; type: string; link?: string; createdAt: string; readAt?: string };
+
 const formatDate = (value?: string) => value
   ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
   : '—';
@@ -21,12 +23,14 @@ export default function ClientActivity() {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   useEffect(() => {
     const loadActivity = async () => {
       try {
-        const response = await API.get('/clients');
+        const [response, notificationResponse] = await Promise.all([API.get('/clients'), API.get('/notifications')]);
         setClients(response.data || []);
+        setNotifications(notificationResponse.data || []);
       } finally {
         setLoading(false);
       }
@@ -58,6 +62,11 @@ export default function ClientActivity() {
               {pendingCount ? `${pendingCount} client${pendingCount > 1 ? 's' : ''} awaiting review` : 'All client uploads are up to date'}
             </div>
           </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4"><h2 className="text-sm font-extrabold text-slate-900">Reminder & workflow inbox</h2><p className="mt-1 text-xs text-slate-500">Saved client uploads, re-upload requests, final deliveries and reminders.</p></div>
+          {notifications.length === 0 ? <p className="p-5 text-xs text-slate-500">No workflow notifications yet.</p> : <div className="divide-y divide-slate-100">{notifications.slice(0, 20).map((notification) => <button key={notification._id} type="button" onClick={() => notification.link && navigate(notification.link)} className="w-full px-5 py-4 text-left hover:bg-slate-50"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-extrabold text-slate-800">{notification.title}</p><p className="mt-1 text-xs leading-5 text-slate-600">{notification.message}</p></div><span className="shrink-0 text-[10px] font-semibold text-slate-400">{formatDate(notification.createdAt)}</span></div></button>)}</div>}
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

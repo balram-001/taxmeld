@@ -20,6 +20,8 @@ export interface IDocumentTask extends Document {
   remarks?: string;
   files: IUploadedFile[]; // Multiple files array
   finalDeliveryVersion?: number;
+  reuploadReason?: string;
+  reuploadRequestedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,6 +43,8 @@ const DocumentTaskSchema: Schema = new Schema(
     // Counts final-document deliveries. This persists across Render restarts,
     // so the first delivery is always normal and later ones are always updates.
     finalDeliveryVersion: { type: Number, default: 0 },
+    reuploadReason: { type: String, default: '' },
+    reuploadRequestedAt: { type: Date },
     files: [
       {
         fileUrl: { type: String, required: true },

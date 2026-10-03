@@ -24,6 +24,7 @@ export default function ClientTracker() {
   const [uploadingStatus, setUploadingStatus] = useState<{ category: string; count: number } | null>(null);
   const [submittingDocuments, setSubmittingDocuments] = useState(false);
   const [documentsSubmitted, setDocumentsSubmitted] = useState(false);
+  const [submissionNotice, setSubmissionNotice] = useState(false);
   const storageKey = `taxmeld_portal_access_${token}`;
   const [portalAccess, setPortalAccess] = useState(() => sessionStorage.getItem(`taxmeld_portal_access_${token}`) || '');
   const [accessForm, setAccessForm] = useState({ name: '', panNumber: '', phone: '' });
@@ -109,6 +110,8 @@ export default function ClientTracker() {
     try {
       await API.post(`/tasks/submit/${token}`, {}, { headers: portalHeaders });
       setDocumentsSubmitted(true);
+      setSubmissionNotice(true);
+      window.setTimeout(() => setSubmissionNotice(false), 5000);
       showToast('Documents submitted to your CA successfully.', 'success');
       void fetchStatus();
     } catch (err: any) {
@@ -159,6 +162,7 @@ export default function ClientTracker() {
   const selectedServices = data.client.serviceType 
     ? data.client.serviceType.split(', ').filter(Boolean) 
     : [];
+  const reuploadRequests = (data.tasks || []).filter((task: any) => task.documentType === 'Client Document' && task.reuploadReason);
 
   const expandedSlots: any[] = [];
   selectedServices.forEach((serviceName: string) => {
@@ -214,6 +218,8 @@ export default function ClientTracker() {
           <p className="font-mono text-xs sm:text-sm font-bold text-slate-800">{data.client.panNumber}</p>
         </div>
       </div>
+
+      {reuploadRequests.length > 0 && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950 shadow-sm"><p className="text-sm font-extrabold">Your CA needs a document re-upload</p><div className="mt-2 space-y-1">{reuploadRequests.map((task: any) => <p key={task._id} className="text-xs leading-5"><strong>{task.serviceCategory || 'Document'}:</strong> {task.reuploadReason}</p>)}</div><p className="mt-2 text-[11px] text-amber-800">Upload the corrected document below, then submit it to your CA.</p></div>}
 
       {ackFileItem && (() => {
         const service = (data.client.serviceType || '').toLowerCase();
@@ -398,22 +404,20 @@ export default function ClientTracker() {
             <Plus size={14} /> Need to upload any other document? Add custom slot
           </button>
         </div>
-        {documentsSubmitted ? (
+        {submissionNotice && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
             <p className="inline-flex items-center justify-center gap-1.5 text-xs font-extrabold text-emerald-800"><CheckCheck size={16} /> Documents submitted successfully to your CA</p>
-            <p className="mt-1 text-[10px] text-emerald-700">Your CA has been notified. You can add more documents if needed.</p>
           </div>
-        ) : <>
+        )}
           <button
             type="button"
             onClick={submitDocumentsToCA}
             disabled={submittingDocuments || !data.tasks?.some((task: any) => task.documentType === 'Client Document' && task.files?.length > 0)}
             className="w-full min-h-11 rounded-xl bg-emerald-600 px-4 text-xs font-extrabold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition inline-flex items-center justify-center gap-2 cursor-pointer"
           >
-            {submittingDocuments ? <Loader2 size={16} className="animate-spin" /> : <CheckCheck size={16} />} Submit Documents to CA
+            {submittingDocuments ? <Loader2 size={16} className="animate-spin" /> : <CheckCheck size={16} />} {documentsSubmitted ? 'Submit Updated Documents to CA' : 'Submit Documents to CA'}
           </button>
           <p className="text-center text-[10px] text-slate-500">Upload all required files first, then submit them together for CA review.</p>
-        </>}
       </div>
 
       {/* Filing Status Timeline */}

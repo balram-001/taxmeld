@@ -16,6 +16,7 @@ import {
   getStaffAssignedTasks,
   getStaffDashboard,
   updateStaffTaskStatus
+  ,requestDocumentReupload
 } from '../controllers/taskController';
 import { protect, protectClientPortal } from '../middleware/authMiddleware';
 
@@ -35,6 +36,7 @@ router.get('/file/:token/:taskId/:fileId', protectClientPortal, getStoredFile);
 // CA Dashboard Routes
 router.post('/ca-upload-signature/:clientId', protect, createCAUploadSignature);
 router.post('/ca-upload-ack/:clientId', protect, uploadFinalAcknowledgement);
+router.post('/reupload/:taskId', protect, requestDocumentReupload);
 router.put('/:id', protect, updateTaskStatus);
 
 // --- Naye Team Task Management Routes ---
