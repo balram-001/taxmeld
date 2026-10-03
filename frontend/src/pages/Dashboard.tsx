@@ -5,7 +5,7 @@ import { BACKEND_URL } from '../config';
 import { useToast } from '../toast';
 import { 
   Shield, Plus, Search, ExternalLink, X, 
-  MessageCircle, Loader2, FileText, Download, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles, ArrowLeft, Users, DollarSign
+  MessageCircle, Loader2, FileText, Download, AlertTriangle, CheckCheck, Clock, ShieldAlert, Sparkles, ArrowLeft, Users, DollarSign, Calendar,
 } from 'lucide-react';
 
 const AVAILABLE_SERVICES = [
@@ -445,6 +445,14 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
 >
   <Clock size={16} /> Time Tracking
 </button>
+
+<button 
+  onClick={() => navigate('/compliance')} 
+  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2.5 rounded-lg border border-slate-300 shadow-sm transition text-sm cursor-pointer"
+>
+  <Calendar size={16} /> Compliance Calendar
+</button>
+
   <button
     type="button"
     onClick={() => {
