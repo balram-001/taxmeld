@@ -13,10 +13,10 @@ export const getTimeLogs = async (req: Request, res: Response) => {
   }
 };
 
-// Create a new Time Log
+// Create a new Time Log (Default status: Pending)
 export const createTimeLog = async (req: Request, res: Response) => {
   try {
-    const { firmId, clientId, taskName, hoursSpent, date, notes } = req.body;
+    const { firmId, clientId, taskName, hoursSpent, date, notes, staffName } = req.body;
     
     const client = await Client.findById(clientId);
     if (!client) {
@@ -27,13 +27,33 @@ export const createTimeLog = async (req: Request, res: Response) => {
       firmId,
       clientId,
       clientName: client.name,
+      staffName: staffName || 'Staff Member',
       taskName,
       hoursSpent: Number(hoursSpent),
       date: date || Date.now(),
-      notes
+      notes,
+      status: 'Pending'
     });
 
     return res.status(201).json({ success: true, timeLog: newLog });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Approve Time Log by CA/Partner
+export const approveTimeLog = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const timeLog = await TimeTracking.findById(id);
+    if (!timeLog) {
+      return res.status(404).json({ success: false, message: 'Time log not found' });
+    }
+
+    timeLog.status = 'Approved';
+    await timeLog.save();
+
+    return res.json({ success: true, timeLog });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }

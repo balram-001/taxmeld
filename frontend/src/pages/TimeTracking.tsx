@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, Plus, Trash2, Clock, Search, User, Briefcase } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Clock, Search, User, Briefcase, CheckCircle } from 'lucide-react';
 
 interface TimeLog {
   _id: string;
   clientName: string;
+  staffName?: string;
   taskName: string;
   hoursSpent: number;
   date: string;
   notes?: string;
+  status: 'Pending' | 'Approved';
 }
 
 export default function TimeTracking() {
@@ -91,7 +93,7 @@ export default function TimeTracking() {
       }, { headers: { Authorization: `Bearer ${token}` } });
 
       if (res.data.success) {
-        setToast('Time log recorded successfully!');
+        setToast('Time log recorded successfully (Pending Partner Approval)!');
         setViewMode('list');
         setTaskName('');
         setHoursSpent('');
@@ -100,6 +102,20 @@ export default function TimeTracking() {
         setClientSearch('');
         fetchTimeLogs(firmId, token);
         setTimeout(() => setToast(''), 4000);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.patch(`/api/timetracking/${id}/approve`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        setToast('Time log approved successfully!');
+        fetchTimeLogs(firmId, token);
+        setTimeout(() => setToast(''), 3000);
       }
     } catch (err) {
       console.error(err);
@@ -119,7 +135,10 @@ export default function TimeTracking() {
     }
   };
 
-  const totalHours = timeLogs.reduce((acc, log) => acc + Number(log.hoursSpent || 0), 0);
+  // Only approved hours (or all) counted in total
+  const totalApprovedHours = timeLogs
+    .filter(log => log.status === 'Approved')
+    .reduce((acc, log) => acc + Number(log.hoursSpent || 0), 0);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
@@ -152,7 +171,7 @@ export default function TimeTracking() {
                 <Clock size={16} /> Billable Hours Manager
               </div>
               <h1 className="text-2xl font-extrabold text-slate-900">Log Task Working Hours</h1>
-              <p className="text-sm text-slate-500 mt-1">Record time spent on client tax filing, audits, or advisory work.</p>
+              <p className="text-sm text-slate-500 mt-1">Record time spent on client tax filing or audits for review.</p>
             </div>
 
             <form onSubmit={handleCreateLog} className="space-y-6">
@@ -270,7 +289,7 @@ export default function TimeTracking() {
                   Cancel
                 </button>
                 <button type="submit" className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold shadow-sm cursor-pointer">
-                  Save Time Log
+                  Submit for Approval
                 </button>
               </div>
 
@@ -284,12 +303,12 @@ export default function TimeTracking() {
                 <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs uppercase tracking-wider mb-1">
                   <Clock size={16} /> Billable Hours Tracker
                 </div>
-                <h1 className="text-2xl font-extrabold text-slate-900">Time Tracking & Productivity</h1>
-                <p className="text-sm text-slate-500 mt-1">Monitor staff hours spent across various client tasks.</p>
+                <h1 className="text-2xl font-extrabold text-slate-900">Time Tracking & Approvals</h1>
+                <p className="text-sm text-slate-500 mt-1">Review and approve staff hours spent across client tasks.</p>
               </div>
               <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-center">
-                <span className="text-xs font-bold uppercase text-emerald-700 block">Total Hours Logged</span>
-                <span className="text-2xl font-extrabold text-emerald-900">{totalHours} hrs</span>
+                <span className="text-xs font-bold uppercase text-emerald-700 block">Approved Billable Hours</span>
+                <span className="text-2xl font-extrabold text-emerald-900">{totalApprovedHours} hrs</span>
               </div>
             </div>
 
@@ -306,7 +325,10 @@ export default function TimeTracking() {
                         <span className="font-mono text-xs font-bold bg-slate-100 px-2.5 py-1 rounded text-slate-700">
                           {new Date(log.date).toLocaleDateString()}
                         </span>
-                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${log.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                          {log.status}
+                        </span>
+                        <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-0.5 rounded-full">
                           <Briefcase size={12} /> {log.hoursSpent} Hours
                         </span>
                       </div>
@@ -316,6 +338,11 @@ export default function TimeTracking() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {log.status === 'Pending' && (
+                        <button onClick={() => handleApprove(log._id)} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-xs shadow-sm transition cursor-pointer">
+                          <CheckCircle size={15} /> Approve
+                        </button>
+                      )}
                       <button onClick={() => handleDelete(log._id)} className="p-2 border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition cursor-pointer" title="Delete Log">
                         <Trash2 size={16} />
                       </button>
