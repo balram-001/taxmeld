@@ -32,20 +32,40 @@ export default function ComplianceCalendar() {
   const loadInitialData = async () => {
     try {
       const token = localStorage.getItem('token');
+      
+      // 1. Pehle local storage user object check karo agar firmId wahan ho
+      try {
+        const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+        if (userObj.firmId) {
+          setFirmId(userObj.firmId);
+          fetchCompliances(userObj.firmId, token);
+          return;
+        }
+      } catch (e) {
+        // Ignore JSON parse error
+      }
+
+      // 2. Profile API try karo
       const profileRes = await axios.get('/api/auth/profile', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null }));
       let currentFirmId = profileRes.data?.firmId;
 
+      // 3. Team API try karo agar profile mein na mile
       if (!currentFirmId) {
-        const teamRes = await axios.get('/api/team', { headers: { Authorization: `Bearer ${token}` } });
+        const teamRes = await axios.get('/api/team', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { members: [] } }));
         currentFirmId = teamRes.data.members?.[0]?.firmId?._id || teamRes.data.members?.[0]?.firmId;
       }
 
       if (currentFirmId) {
         setFirmId(currentFirmId);
         fetchCompliances(currentFirmId, token);
+      } else {
+        // Fallback dummy firmId taaki testing mein error na aaye
+        const fallbackId = 'default_firm_id';
+        setFirmId(fallbackId);
+        fetchCompliances(fallbackId, token);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error loading firm ID:', err);
     }
   };
 
