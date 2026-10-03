@@ -439,7 +439,12 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
       <DollarSign size={17} /> Billing
     </button>
   )}
-
+<button 
+  onClick={() => navigate('/timetracking')} 
+  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2.5 rounded-lg border border-slate-300 shadow-sm transition text-sm cursor-pointer"
+>
+  <Clock size={16} /> Time Tracking
+</button>
   <button
     type="button"
     onClick={() => {
