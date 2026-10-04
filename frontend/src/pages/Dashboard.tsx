@@ -33,6 +33,7 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
   // Compliance Urgent Banner States
   const [urgentDeadlines, setUrgentDeadlines] = useState<any[]>([]);
   const [showAlertBanner, setShowAlertBanner] = useState(false);
+  const [practiceMetrics, setPracticeMetrics] = useState({ totalHours: 0, pendingHours: 0, activeStaff: 0 });
 
 
   // Trial and subscription states
@@ -83,10 +84,11 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     }
 
     try {
-      const [profileRes, clientsRes, teamRes] = await Promise.all([
+      const [profileRes, clientsRes, teamRes, timeRes] = await Promise.all([
         API.get('/auth/profile').catch(() => ({ data: null })),
         API.get('/clients'),
-        API.get('/team').catch(() => ({ data: { members: [] } }))
+        API.get('/team').catch(() => ({ data: { members: [] } })),
+        API.get('/timetracking').catch(() => ({ data: { timeLogs: [] } })),
       ]);
 
       if (profileRes.data) {
@@ -103,13 +105,14 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
         }
       }
 
-      const currentFirmId = teamRes.data?.members?.[0]?.firmId?._id || teamRes.data?.members?.[0]?.firmId;
-      if (currentFirmId) {
-        
-        checkUpcomingDeadlines(currentFirmId);
-      }
-
       setClients(clientsRes.data || []);
+      const logs = timeRes.data?.timeLogs || [];
+      setPracticeMetrics({
+        totalHours: logs.reduce((total: number, log: any) => total + Number(log.hoursSpent || 0), 0),
+        pendingHours: logs.filter((log: any) => log.status !== 'Approved').reduce((total: number, log: any) => total + Number(log.hoursSpent || 0), 0),
+        activeStaff: (teamRes.data?.members || []).filter((member: any) => member.status === 'active').length,
+      });
+      if (profileRes.data?.firmId || profileRes.data?.id) void checkUpcomingDeadlines();
     } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
       if (err.response?.status === 401) {
@@ -124,10 +127,9 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     }
   };
 
-  const checkUpcomingDeadlines = async (fId: string) => {
+  const checkUpcomingDeadlines = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await API.get(`/compliance?firmId=${fId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await API.get('/compliance');
       if (res.data.success) {
         const today = new Date();
         const urgent = res.data.compliances.filter((item: any) => {
@@ -339,6 +341,19 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
     c.panNumber?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const waitingForClient = clients.filter((client) => !client.lastClientUploadAt && !client.lastFinalDeliveryAt).length;
+  const documentsForReview = clients.filter((client) => Boolean(client.lastClientUploadAt) && (!client.lastFinalDeliveryAt || new Date(client.lastClientUploadAt) > new Date(client.lastFinalDeliveryAt))).length;
+  const completedCases = clients.filter((client) => Boolean(client.lastFinalDeliveryAt) && (!client.lastClientUploadAt || new Date(client.lastFinalDeliveryAt) >= new Date(client.lastClientUploadAt))).length;
+  const overviewCards = [
+    { label: 'Total clients', value: clients.length, detail: 'Active client records', icon: Users, tone: 'border-indigo-100 bg-indigo-50 text-indigo-700', action: () => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }) },
+    { label: 'Waiting for documents', value: waitingForClient, detail: 'Client action needed', icon: Clock, tone: 'border-amber-100 bg-amber-50 text-amber-700', action: () => navigate('/activity') },
+    { label: 'Ready for review', value: documentsForReview, detail: 'Documents received', icon: FileText, tone: 'border-sky-100 bg-sky-50 text-sky-700', action: () => navigate('/activity') },
+    { label: 'Completed cases', value: completedCases, detail: 'Final documents delivered', icon: CheckCheck, tone: 'border-emerald-100 bg-emerald-50 text-emerald-700', action: () => navigate('/activity') },
+    { label: 'Total working hours', value: `${practiceMetrics.totalHours}h`, detail: `${practiceMetrics.pendingHours}h awaiting approval`, icon: Clock, tone: 'border-violet-100 bg-violet-50 text-violet-700', action: () => navigate('/timetracking') },
+    { label: 'Active staff', value: practiceMetrics.activeStaff, detail: 'Working in your firm', icon: Users, tone: 'border-teal-100 bg-teal-50 text-teal-700', action: () => navigate('/team') },
+    { label: 'Urgent deadlines', value: urgentDeadlines.length, detail: 'Due within 3 days', icon: AlertTriangle, tone: 'border-rose-100 bg-rose-50 text-rose-700', action: () => navigate('/compliance') },
+  ];
+
   const ackTask = clientTasks.find(
     (task) => task.title === 'Acknowledgement Generated' || task.documentType === 'ITR Acknowledgement'
   );
@@ -542,6 +557,13 @@ export default function Dashboard({ isDemo = false, onDemoLimit }: { isDemo?: bo
           </button>
         </div>
       </div>
+
+      {!isDemo && <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7" aria-label="Live practice overview">
+        {overviewCards.map((card) => {
+          const Icon = card.icon;
+          return <button type="button" key={card.label} onClick={card.action} className="rounded-2xl border bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/30"><div className={`inline-flex rounded-xl border p-2 ${card.tone}`}><Icon size={16} /></div><p className="mt-3 text-xl font-extrabold tracking-tight text-slate-900">{card.value}</p><p className="mt-1 text-[11px] font-bold text-slate-700">{card.label}</p><p className="mt-0.5 truncate text-[10px] text-slate-500">{card.detail}</p></button>;
+        })}
+      </section>}
 
       <div className="relative">
         <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
