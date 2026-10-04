@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import API from '../api';
 import { ArrowLeft, Plus, Trash2, Clock, Search, User, Briefcase, CheckCircle } from 'lucide-react';
 
 interface TimeLog {
@@ -18,7 +18,6 @@ export default function TimeTracking() {
   const navigate = useNavigate();
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
   const [clients, setClients] = useState<any[]>([]);
-  const [firmId, setFirmId] = useState('');
   
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
   const [clientSearch, setClientSearch] = useState('');
@@ -37,32 +36,30 @@ export default function TimeTracking() {
 
   const loadInitialData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const teamRes = await axios.get('/api/team', { headers: { Authorization: `Bearer ${token}` } });
-      const currentFirmId = teamRes.data.members?.[0]?.firmId?._id || teamRes.data.members?.[0]?.firmId;
+      const profileRes = await API.get('/auth/profile');
+      const currentFirmId = profileRes.data?.firmId || profileRes.data?.id;
       if (currentFirmId) {
-        setFirmId(currentFirmId);
-        fetchTimeLogs(currentFirmId, token);
-        fetchClients(currentFirmId, token);
+        fetchTimeLogs();
+        fetchClients();
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const fetchTimeLogs = async (fId: string, token: string | null) => {
+  const fetchTimeLogs = async () => {
     try {
-      const res = await axios.get(`/api/timetracking?firmId=${fId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await API.get('/timetracking');
       if (res.data.success) setTimeLogs(res.data.timeLogs);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const fetchClients = async (fId: string, token: string | null) => {
+  const fetchClients = async () => {
     try {
-      const res = await axios.get(`/api/clients?firmId=${fId}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) setClients(res.data.clients || res.data);
+      const res = await API.get('/clients');
+      setClients(Array.isArray(res.data) ? res.data : res.data.clients || []);
     } catch (err) {
       console.error(err);
     }
@@ -82,15 +79,13 @@ export default function TimeTracking() {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post('/api/timetracking/create', {
-        firmId,
+      const res = await API.post('/timetracking/create', {
         clientId: selectedClient._id,
         taskName,
         hoursSpent,
         date: logDate,
         notes
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      });
 
       if (res.data.success) {
         setToast('Time log recorded successfully (Pending Partner Approval)!');
@@ -100,7 +95,7 @@ export default function TimeTracking() {
         setNotes('');
         setSelectedClient(null);
         setClientSearch('');
-        fetchTimeLogs(firmId, token);
+        fetchTimeLogs();
         setTimeout(() => setToast(''), 4000);
       }
     } catch (err) {
@@ -110,11 +105,10 @@ export default function TimeTracking() {
 
   const handleApprove = async (id: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.patch(`/api/timetracking/${id}/approve`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await API.patch(`/timetracking/${id}/approve`);
       if (res.data.success) {
         setToast('Time log approved successfully!');
-        fetchTimeLogs(firmId, token);
+        fetchTimeLogs();
         setTimeout(() => setToast(''), 3000);
       }
     } catch (err) {
@@ -125,10 +119,9 @@ export default function TimeTracking() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this time log?')) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/timetracking/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await API.delete(`/timetracking/${id}`);
       setToast('Time log deleted successfully');
-      fetchTimeLogs(firmId, token);
+      fetchTimeLogs();
       setTimeout(() => setToast(''), 3000);
     } catch (err) {
       console.error(err);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import API from '../api';
 import { ArrowLeft, Plus, Trash2, Calendar, CheckCircle, Tag } from 'lucide-react';
 
 interface ComplianceItem {
@@ -31,47 +31,23 @@ export default function ComplianceCalendar() {
 
   const loadInitialData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      
-      // 1. Pehle local storage user object check karo agar firmId wahan ho
-      try {
-        const userObj = JSON.parse(localStorage.getItem('user') || '{}');
-        if (userObj.firmId) {
-          setFirmId(userObj.firmId);
-          fetchCompliances(userObj.firmId, token);
-          return;
-        }
-      } catch (e) {
-        // Ignore JSON parse error
-      }
-
-      // 2. Profile API try karo
-      const profileRes = await axios.get('/api/auth/profile', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null }));
-      let currentFirmId = profileRes.data?.firmId;
-
-      // 3. Team API try karo agar profile mein na mile
-      if (!currentFirmId) {
-        const teamRes = await axios.get('/api/team', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { members: [] } }));
-        currentFirmId = teamRes.data.members?.[0]?.firmId?._id || teamRes.data.members?.[0]?.firmId;
-      }
+      const profileRes = await API.get('/auth/profile');
+      const currentFirmId = profileRes.data?.firmId || profileRes.data?.id;
 
       if (currentFirmId) {
         setFirmId(currentFirmId);
-        fetchCompliances(currentFirmId, token);
+        fetchCompliances();
       } else {
-        // Fallback dummy firmId taaki testing mein error na aaye
-        const fallbackId = 'default_firm_id';
-        setFirmId(fallbackId);
-        fetchCompliances(fallbackId, token);
+        setToast('Could not load your firm workspace. Please sign in again.');
       }
     } catch (err) {
       console.error('Error loading firm ID:', err);
     }
   };
 
-  const fetchCompliances = async (fId: string, token: string | null) => {
+  const fetchCompliances = async () => {
     try {
-      const res = await axios.get(`/api/compliance?firmId=${fId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await API.get('/compliance');
       if (res.data.success) setCompliances(res.data.compliances);
     } catch (err) {
       console.error(err);
@@ -86,15 +62,12 @@ export default function ComplianceCalendar() {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      // `/api/compliance/create` ki jagah sirf `/api/compliance` use karein (POST method ke liye)
-      const res = await axios.post('/api/compliance', {
-        firmId,
+      const res = await API.post('/compliance', {
         title,
         category,
         dueDate,
         description
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      });
 
       if (res.data.success) {
         setToast('Compliance deadline added successfully!');
@@ -102,7 +75,7 @@ export default function ComplianceCalendar() {
         setTitle('');
         setDueDate('');
         setDescription('');
-        fetchCompliances(firmId, token);
+        fetchCompliances();
         setTimeout(() => setToast(''), 4000);
       }
     } catch (err: any) {
@@ -113,11 +86,10 @@ export default function ComplianceCalendar() {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.patch(`/api/compliance/${id}/status`, { status: newStatus }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await API.patch(`/compliance/${id}/status`, { status: newStatus });
       if (res.data.success) {
         setToast(`Compliance status updated to ${newStatus}!`);
-        fetchCompliances(firmId, token);
+        fetchCompliances();
         setTimeout(() => setToast(''), 3000);
       }
     } catch (err) {
@@ -128,10 +100,9 @@ export default function ComplianceCalendar() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this compliance deadline?')) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/compliance/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await API.delete(`/compliance/${id}`);
       setToast('Compliance deadline deleted successfully');
-      fetchCompliances(firmId, token);
+      fetchCompliances();
       setTimeout(() => setToast(''), 3000);
     } catch (err) {
       console.error(err);
