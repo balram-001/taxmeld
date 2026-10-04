@@ -28,12 +28,13 @@ export default function Pricing() {
   }, [navigate]);
 
   const active = (type: string) => subscriptionStatus === 'active' && planType === type;
-  const legacyTeamActive = subscriptionStatus === 'active' && planType === 'professional_399';
   const solo = billing === 'monthly' ? { amount: '399', label: '/ month', route: 'solo-monthly' } : { amount: '3,999', label: '/ year', route: 'solo-annual' };
   const team = billing === 'monthly' ? { amount: '599', label: '/ month', route: 'team-monthly' } : { amount: '5,999', label: '/ year', route: 'team-annual' };
 
   const card = (kind: 'solo' | 'team', title: string, subtitle: string, price: typeof solo, features: string[]) => {
-    const isActive = active(planKeys[kind][billing]) || (kind === 'team' && legacyTeamActive);
+    // An active plan must match its exact billing period. A Team monthly plan
+    // must never make the annual card look purchased (and vice versa).
+    const isActive = active(planKeys[kind][billing]);
     return <section className={`relative flex flex-col rounded-3xl border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl sm:p-8 ${kind === 'team' ? 'border-emerald-300 ring-2 ring-emerald-500/10' : 'border-slate-200'}`}>
       {kind === 'team' && <span className="absolute right-5 top-0 -translate-y-1/2 rounded-full bg-emerald-600 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white">For growing firms</span>}
       <div><div className="flex items-center gap-2"><span className={`rounded-full px-3 py-1 text-xs font-extrabold ${kind === 'team' ? 'bg-emerald-50 text-emerald-800' : 'bg-indigo-50 text-indigo-700'}`}>{title}</span>{isActive && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800"><CheckCircle size={12} /> Active</span>}</div><p className="mt-4 text-sm leading-6 text-slate-500">{subtitle}</p><div className="mt-5 flex items-baseline"><span className="text-5xl font-extrabold text-slate-950">₹{price.amount}</span><span className="ml-1 text-sm font-semibold text-slate-500">{price.label}</span></div>{billing === 'annual' && <p className="mt-2 text-xs font-bold text-emerald-700">{kind === 'solo' ? 'Save ₹789 every year' : 'Save ₹1,189 every year'}</p>}<ul className="mt-7 space-y-3 text-sm text-slate-700">{features.map((feature) => <li key={feature} className="flex gap-2.5"><CheckCircle size={17} className="mt-0.5 shrink-0 text-emerald-600" /><span>{feature}</span></li>)}</ul></div><div className="mt-8 border-t border-slate-100 pt-5">{isActive ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center text-xs font-bold text-emerald-800">Your {title} is active.</div> : <button onClick={() => navigate(`/payment/${price.route}`)} className={`w-full rounded-full px-4 py-3.5 text-sm font-extrabold text-white shadow-md ${kind === 'team' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-900 hover:bg-slate-800'}`}>{kind === 'team' ? `Choose Team · ₹${price.amount}` : `Choose Solo · ₹${price.amount}`}</button>}</div></section>;
